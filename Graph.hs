@@ -15,7 +15,8 @@ type Set = FasterInteger
 data Graph = Graph { edgeCount :: !Int,
                      nodeCount :: !Int,
                      matrix :: !Matrix,
-                     degree :: !(V.Vector Int) }
+                     degree :: !(V.Vector Int),
+                     maxDegree :: !Int }
              deriving (Show)
 
 createGraph' :: Int -> [(Int, Int)] -> Matrix
@@ -31,9 +32,11 @@ createGraph' !n !xs = V.create $ do
 -- | Creates a graph with `n` nodes using the edges in `xs`
 createGraph :: Int -> [(Int, Int)] -> Graph
 createGraph !n !xs = Graph { matrix = matrix, degree = degrees,
-                           edgeCount = length xs, nodeCount = V.length matrix }
+                           edgeCount = length xs, nodeCount = V.length matrix,
+                           maxDegree = mDegree }
   where matrix = createGraph' n xs
         degrees = V.generate n (\x -> popCount (matrix V.! x))
+        mDegree = maximum degrees
 
 -- | Checks if `x` is connected to `y`
 connected :: Graph -> Int -> Int -> Bool

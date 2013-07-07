@@ -127,6 +127,16 @@ selectMinPenalty set = do
   let ans = minimum (map (\x -> (fromJust (DM.lookup x penalties))) set)
   return (snd ans)
 
+-- | Heuristic search mixing penalties and vertex degree
+selectBestHeuristic :: [Int] -> CliqueState Int
+selectBestHeuristic set = do
+  st <- get
+  penalties <- liftIO $ readMVar (penalty st)
+  let dg = degree (graph st)
+  let maxi = maxDegree (graph st)
+  let ans = DF.minimum (Prelude.map (\x -> (fromJust (DM.lookup x penalties))*(maxi - (dg V.! x))) set)
+  return (snd ans)
+
 -- | Phases of expand and plateau search
 phases :: CliqueState ()
 phases = do
