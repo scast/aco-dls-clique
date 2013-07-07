@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 module Graph (createGraph, connected, connectedAll, disconnectedOne, nodeCount,
-              improvementSet, levelSet, Set, Graph) where
+              improvementSet, levelSet, Set, Graph, degree, maxDegree) where
 import Data.Bits
 import Data.Foldable (all, Foldable, foldl')
 import Control.Monad
@@ -36,7 +36,7 @@ createGraph !n !xs = Graph { matrix = matrix, degree = degrees,
                            maxDegree = mDegree }
   where matrix = createGraph' n xs
         degrees = V.generate n (\x -> popCount (matrix V.! x))
-        mDegree = maximum degrees
+        mDegree = V.maximum degrees
 
 -- | Checks if `x` is connected to `y`
 connected :: Graph -> Int -> Int -> Bool

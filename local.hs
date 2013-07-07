@@ -8,6 +8,7 @@ import System.Environment
 import Control.Concurrent
 import Control.Concurrent.Chan
 import Control.Concurrent.MVar
+import qualified Data.Vector as V
 import qualified Data.ByteString.Lazy as B (readFile)
 import qualified Data.Foldable as DF
 import qualified Data.IntMap as DM
@@ -84,7 +85,7 @@ expand = do
   is <- return $ improvementSet (graph st) (currentClique st) au
   if (null is)
     then updateBest
-    else do v <- selectMinPenalty is
+    else do v <- selectBestHeuristic is
             newClique <- return $ (currentClique st) `setBit` v
             liftIO $ modifyMVar_ (numSteps st) inc
             put st {currentClique = newClique, lastAdded = Just v,
@@ -99,7 +100,7 @@ plateau c' = do
   ls <- return $ levelSet (graph st) (currentClique st) au
   is <- return $ improvementSet (graph st) (currentClique st) au
   if and [not (null ls), ((currentClique st) .&. c') /= 0 , null is]
-    then do v <- selectMinPenalty ls
+    then do v <- selectBestHeuristic ls
             let remove = (disconnectedOne (graph st) v (currentClique st))
             newClique <- return $ (currentClique st) `setBit` v `clearBit` remove
             liftIO $ modifyMVar_ (numSteps st) inc
