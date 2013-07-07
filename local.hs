@@ -98,7 +98,7 @@ plateau c' = do
   let au = alreadyUsed st
   ls <- return $ levelSet (graph st) (currentClique st) au
   is <- return $ improvementSet (graph st) (currentClique st) au
-  if and [null is, not (null ls), ((currentClique st) .&. c') /= 0 ]
+  if and [not (null ls), ((currentClique st) .&. c') /= 0 , null is]
     then do v <- selectMinPenalty ls
             let remove = (disconnectedOne (graph st) v (currentClique st))
             newClique <- return $ (currentClique st) `setBit` v `clearBit` remove
