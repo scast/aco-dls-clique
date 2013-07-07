@@ -85,7 +85,7 @@ expand = do
   is <- return $ improvementSet (graph st) (currentClique st) au
   if (null is)
     then updateBest
-    else do v <- selectMinPenalty is
+    else do v <- selectBestHeuristic is
             newClique <- return $ (currentClique st) `setBit` v
             liftIO $ modifyMVar_ (numSteps st) inc
             put st {currentClique = newClique, lastAdded = Just v,
@@ -100,7 +100,7 @@ plateau c' = do
   ls <- return $ levelSet (graph st) (currentClique st) au
   is <- return $ improvementSet (graph st) (currentClique st) au
   if and [null is, not (null ls), ((currentClique st) .&. c') /= 0 ]
-    then do v <- selectMinPenalty ls
+    then do v <- selectBestHeuristic ls
             let remove = (disconnectedOne (graph st) v (currentClique st))
             newClique <- return $ (currentClique st) `setBit` v `clearBit` remove
             liftIO $ modifyMVar_ (numSteps st) inc
