@@ -3,11 +3,10 @@ module Graph (createGraph, connected, connectedAll, disconnectedOne, nodeCount,
               improvementSet, levelSet, Set, Graph) where
 import Data.Bits
 import Data.Foldable (all, Foldable, foldl')
+import Control.Monad
 import Prelude hiding (all)
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
-import qualified Control.Monad as M
-import qualified Data.ByteString as B
 import Data.BitSet.Dynamic (FasterInteger)
 
 
@@ -22,7 +21,7 @@ data Graph = Graph { edgeCount :: !Int,
 createGraph' :: Int -> [(Int, Int)] -> Matrix
 createGraph' !n !xs = V.create $ do
   v <- VM.replicate n 0
-  M.forM xs $ \(a, b) -> do
+  forM xs $ \(a, b) -> do
     valueA <- VM.read v (a-1)
     valueB <- VM.read v (b-1)
     VM.write v (a-1) (valueA `setBit` (b-1))
