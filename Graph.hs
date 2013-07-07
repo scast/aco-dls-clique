@@ -61,19 +61,13 @@ isDisconnectedFromOne g !x !cc !bc = popCount bm == bc - 1
 
 -- | The vertex set of possible expansions for a clique `cc`
 improvementSet :: Graph -> Set -> Set -> [Int]
-improvementSet g cc alreadyUsed = foldl' go [] notClique
+improvementSet g cc alreadyUsed = filter cond [0..(nodeCount g)-1]
   where
-    notClique = map cond [0..(nodeCount g)-1]
-    cond x = (x, (not (alreadyUsed `testBit` x)) && (not (cc `testBit` x)) && (connectedAll g x cc))
-    go !acum !(pos, True) = pos:acum
-    go !acum !(_, False) = acum
+    cond x = (not (alreadyUsed `testBit` x)) && (not (cc `testBit` x)) && (connectedAll g x cc)
 
 -- | The vertex set of possible swaps for a clique `cc`
 levelSet :: Graph -> Set -> Set -> [Int]
-levelSet g cc alreadyUsed = foldl' go [] notClique
+levelSet g cc alreadyUsed = filter cond [0..(nodeCount g)-1]
   where
-    notClique = map cond [0..(nodeCount g)-1]
     !bc = popCount cc
-    cond !x = (x, not (cc `testBit` x) && not (alreadyUsed `testBit` x) && isDisconnectedFromOne g x cc bc)
-    go !acum !(pos, True) = pos:acum
-    go !acum !(_, False) = acum
+    cond !x = not (cc `testBit` x) && not (alreadyUsed `testBit` x) && isDisconnectedFromOne g x cc bc
