@@ -4,6 +4,7 @@ import Data.Bits
 import Data.Maybe (fromJust)
 import Control.Monad (forM)
 import System.Random
+import System.Environment
 import Control.Concurrent
 import Control.Concurrent.Chan
 import Control.Concurrent.MVar
@@ -162,7 +163,8 @@ restart = do
 
 main :: IO ()
 main = do
-  file <- B.readFile "/Users/scb/Documents/academics/ci5652/keller6.clq" -- hamming10-4.clq"
+  [filename] <- getArgs
+  file <- B.readFile filename
   case parseByteString "" file of
     Right (GraphEdges n _ e) ->
       do
