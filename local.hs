@@ -85,7 +85,7 @@ expand = do
   is <- return $ improvementSet (graph st) (currentClique st) au
   if (null is)
     then updateBest
-    else do v <- selectBestHeuristic is
+    else do v <- selectMinPenalty is
             newClique <- return $ (currentClique st) `setBit` v
             liftIO $ modifyMVar_ (numSteps st) inc
             put st {currentClique = newClique, lastAdded = Just v,
@@ -99,8 +99,8 @@ plateau c' = do
   let au = alreadyUsed st
   ls <- return $ levelSet (graph st) (currentClique st) au
   is <- return $ improvementSet (graph st) (currentClique st) au
-  if and [not (null ls), ((currentClique st) .&. c') /= 0 , null is]
-    then do v <- selectBestHeuristic ls
+  if and [null is, not (null ls), ((currentClique st) .&. c') /= 0 ]
+    then do v <- selectMinPenalty ls
             let remove = (disconnectedOne (graph st) v (currentClique st))
             newClique <- return $ (currentClique st) `setBit` v `clearBit` remove
             liftIO $ modifyMVar_ (numSteps st) inc
@@ -128,15 +128,18 @@ selectMinPenalty set = do
   let ans = minimum (map (\x -> (fromJust (DM.lookup x penalties))) set)
   return (snd ans)
 
--- | Heuristic search mixing penalties and vertex degree
+-- | Heuristic search mixing penalties and node degree
 selectBestHeuristic :: [Int] -> CliqueState Int
 selectBestHeuristic set = do
   st <- get
-  penalties <- liftIO $ readMVar (penalty st)
+  pe <- liftIO $ readMVar (penalty st)
   let dg = degree (graph st)
   let maxi = maxDegree (graph st)
-  let ans = DF.minimum (Prelude.map (\x -> (fromJust (DM.lookup x penalties))*(maxi - (dg V.! x))) set)
+  let ans = DF.minimum (lOrd maxi dg pe)
   return (snd ans)
+  where
+    lOrd maxi dg pe = Prelude.map (\(val,pos) -> ( val*(maxi-(dg V.! pos)) ,pos)) (lPen pe)
+    lPen pe = Prelude.map (\x -> (fromJust (DM.lookup x pe))) set
 
 -- | Phases of expand and plateau search
 phases :: CliqueState ()
