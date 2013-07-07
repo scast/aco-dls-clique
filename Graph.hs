@@ -2,7 +2,7 @@
 module Graph (createGraph, connected, connectedAll, disconnectedOne, nodeCount,
               improvementSet, levelSet, Set, Graph, degree, maxDegree) where
 import Data.Bits
-import Data.Foldable (all, Foldable, foldl')
+import Data.Foldable (all, Foldable, foldl', maximum)
 import Control.Monad
 import Prelude hiding (all)
 import qualified Data.Vector as V
@@ -33,7 +33,7 @@ createGraph' !n !xs = V.create $ do
 createGraph :: Int -> [(Int, Int)] -> Graph
 createGraph !n !xs = Graph { matrix = matrix, degree = degrees,
                            edgeCount = length xs, nodeCount = V.length matrix,
-                           maxDegree = mDegree }
+                           maxDegree = mDegree}
   where matrix = createGraph' n xs
         degrees = V.generate n (\x -> popCount (matrix V.! x))
         mDegree = V.maximum degrees
@@ -64,13 +64,19 @@ isDisconnectedFromOne g !x !cc !bc = popCount bm == bc - 1
 
 -- | The vertex set of possible expansions for a clique `cc`
 improvementSet :: Graph -> Set -> Set -> [Int]
-improvementSet g cc alreadyUsed = filter cond [0..(nodeCount g)-1]
+improvementSet g cc alreadyUsed = foldl' go [] notClique
   where
-    cond x = (not (alreadyUsed `testBit` x)) && (not (cc `testBit` x)) && (connectedAll g x cc)
+    notClique = map cond [0..(nodeCount g)-1]
+    cond x = (x, (not (alreadyUsed `testBit` x)) && (not (cc `testBit` x)) && (connectedAll g x cc))
+    go !acum !(pos, True) = pos:acum
+    go !acum !(_, False) = acum
 
 -- | The vertex set of possible swaps for a clique `cc`
 levelSet :: Graph -> Set -> Set -> [Int]
-levelSet g cc alreadyUsed = filter cond [0..(nodeCount g)-1]
+levelSet g cc alreadyUsed = foldl' go [] notClique
   where
+    notClique = map cond [0..(nodeCount g)-1]
     !bc = popCount cc
-    cond !x = not (cc `testBit` x) && not (alreadyUsed `testBit` x) && isDisconnectedFromOne g x cc bc
+    cond !x = (x, not (cc `testBit` x) && not (alreadyUsed `testBit` x) && isDisconnectedFromOne g x cc bc)
+    go !acum !(pos, True) = pos:acum
+    go !acum !(_, False) = acum
