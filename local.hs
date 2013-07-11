@@ -2,16 +2,16 @@
 -- module LocalSearch (setInitial) where
 import Data.Bits
 import Data.Maybe (fromJust)
-import Control.Monad (forM)
+import qualified Data.Vector as V
+import qualified Data.ByteString.Lazy as B (readFile)
+import qualified Data.Foldable as DF
+import qualified Data.IntMap as DM
 import System.Random
 import System.Environment
 import Control.Concurrent
 import Control.Concurrent.Chan
 import Control.Concurrent.MVar
-import qualified Data.Vector as V
-import qualified Data.ByteString.Lazy as B (readFile)
-import qualified Data.Foldable as DF
-import qualified Data.IntMap as DM
+import Control.Monad (forM)
 import "mtl" Control.Monad.State
 import "mtl" Control.Monad.Reader
 
@@ -202,7 +202,7 @@ goDLS graph settings = getInitial graph >>= runStateT (runReaderT dls settings)
 
 main :: IO ()
 main = do
-  [filename] <- getArgs
+  [filename, spd, steps] <- getArgs
   file <- B.readFile filename
   case parseByteString "" file of
     Right (GraphEdges n _ e) ->
@@ -212,8 +212,8 @@ main = do
         forM [1..4] $ \x -> do
           forkIO $ do
             goDLS graph Settings { graph = graph,
-                                   maxSteps = 10000,
-                                   penaltyDelay = 1,
+                                   maxSteps = read steps,
+                                   penaltyDelay = read spd,
                                    sharedPenalties = mvPM,
                                    cliqueChan = chan}
             putStrLn "Listo."
