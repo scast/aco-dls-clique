@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 module Graph (createGraph, connected, connectedAll, disconnectedOne, nodeCount,
-              improvementSet, levelSet, Set, Graph, degree, maxDegree) where
+              improvementSet, levelSet, updateImprovementSet, updateImprovementSetS, Set, Graph, degree, maxDegree) where
 import Data.Bits
 import Data.Foldable (all, Foldable, foldl', maximum)
 import Control.Monad
@@ -50,7 +50,6 @@ connectedAll !g x cc = ((m V.! x) .&. cc) == cc
 
 naiveSwapWith bm = snd $ until ((flip testBit 0) . fst) go (bm, 0)
   where go (!nbm, !cnt) = (nbm `shiftR` 1, cnt+1)
-
 
 swapWith :: (Num a, Bits a) => a -> Int -> Int -> Int
 swapWith bm lo hi = let mid = (lo+hi) `div` 2
