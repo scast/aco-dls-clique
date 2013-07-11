@@ -60,7 +60,7 @@ swapWith bm lo hi = let mid = (lo+hi) `div` 2
                             then swapWith bm mid hi
                             else swapWith bm lo (mid-1)
 
--- | Returns the element to `x` with in `cc`.
+-- | Returns the element to swap `x` with in `cc`.
 disconnectedOne g x cc = swapWith (bm `xor` cc) 0 (n-1)
   where m = matrix g
         n = nodeCount g
@@ -74,19 +74,24 @@ isDisconnectedFromOne g !x !cc !bc = popCount bm == bc - 1
 
 -- | The vertex set of possible expansions for a clique `cc`
 improvementSet :: Graph -> Set -> Set -> [Int]
-improvementSet g cc alreadyUsed = foldl' go [] notClique
+improvementSet g cc alreadyUsed = filter cond [0..(nodeCount g)-1]
   where
-    notClique = map cond [0..(nodeCount g)-1]
-    cond x = (x, (not (alreadyUsed `testBit` x)) && (not (cc `testBit` x)) && (connectedAll g x cc))
-    go !acum !(pos, True) = pos:acum
-    go !acum !(_, False) = acum
+    cond x = (not (alreadyUsed `testBit` x)) && (not (cc `testBit` x)) && (connectedAll g x cc)
+
+-- | Update the improvement set after expanding the clique with node v
+updateImprovementSet :: Graph -> [Int] -> Int -> Set -> [Int]
+updateImprovementSet g i0 v alreadyUsed = filter cond i0
+  where cond y = (connected g v y) && not (alreadyUsed `testBit` y)
+
+-- | Update the improvement set after swapping a vertex `x` for a vertex `y`
+updateImprovementSetS :: Graph -> Set -> [Int] -> Int -> Int -> Set -> [Int]
+updateImprovementSetS g cc0 l0 x v alreadyUsed = filter cond l0
+  where cond y = (y /= v) && ((disconnectedOne g y cc0) == x) &&
+                 not (alreadyUsed `testBit` y)
 
 -- | The vertex set of possible swaps for a clique `cc`
 levelSet :: Graph -> Set -> Set -> [Int]
-levelSet g cc alreadyUsed = foldl' go [] notClique
+levelSet g cc alreadyUsed = filter cond [0..(nodeCount g)-1]
   where
-    notClique = map cond [0..(nodeCount g)-1]
     !bc = popCount cc
-    cond !x = (x, not (cc `testBit` x) && not (alreadyUsed `testBit` x) && isDisconnectedFromOne g x cc bc)
-    go !acum !(pos, True) = pos:acum
-    go !acum !(_, False) = acum
+    cond !x = not (cc `testBit` x) && not (alreadyUsed `testBit` x) && isDisconnectedFromOne g x cc bc
