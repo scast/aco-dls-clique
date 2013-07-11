@@ -48,12 +48,22 @@ connectedAll :: Graph -> Int -> Set -> Bool
 connectedAll !g x cc = ((m V.! x) .&. cc) == cc
   where m = matrix g
 
-swapWith bm = snd $ until ((flip testBit 0) . fst) go (bm, 0)
+naiveSwapWith bm = snd $ until ((flip testBit 0) . fst) go (bm, 0)
   where go (!nbm, !cnt) = (nbm `shiftR` 1, cnt+1)
 
+
+swapWith :: (Num a, Bits a) => a -> Int -> Int -> Int
+swapWith bm lo hi = let mid = (lo+hi) `div` 2
+                    in if (bm `testBit` mid)
+                       then mid
+                       else if (bm .&. ((0 `setBit` mid) -1)) == 0
+                            then swapWith bm mid hi
+                            else swapWith bm lo (mid-1)
+
 -- | Returns the element to `x` with in `cc`.
-disconnectedOne g x cc = swapWith (bm `xor` cc)
+disconnectedOne g x cc = swapWith (bm `xor` cc) 0 (n-1)
   where m = matrix g
+        n = nodeCount g
         bm = ((m V.! x) .&. cc)
 
 -- | Returns whether or not `x` is connected to *all* nodes except for
