@@ -13,66 +13,78 @@ import qualified Data.ByteString.Lazy as B (readFile)
 import qualified Data.Foldable as DF
 import qualified Data.IntMap as DM
 import "mtl" Control.Monad.State
+import "mtl" Control.Monad.Reader
 
 import Graph
 import Parser
 
 type PenaltyMap = (DM.IntMap (Int, Int))
 
-data EvalState = EvalState { graph :: !Graph,
-                             currentClique :: !Set,
-                             bestClique :: !(MVar Set),
-                             numSteps :: !(MVar Int),
-                             penaltyDelay :: !Int,
-                             penalty :: !(MVar PenaltyMap),
-                             lastAdded :: !(Maybe Int),
-                             updateCycle :: !Int,
-                             alreadyUsed :: !Set,
-                             foundCliques :: !(Chan Set)}
+data EvalState = EvalState { currentClique :: Set,
+                             bestClique :: Set,
+                             numSteps ::  Int,
+                             penalty :: PenaltyMap,
+                             lastAdded :: Int,
+                             updateCycle :: Int,
+                             alreadyUsed :: Set,
+                             is :: [Int] }
 
-type SharedState = (MVar PenaltyMap, MVar Int, MVar Set, Chan Set)
-type CliqueState a = StateT EvalState IO a
+data Settings = Settings { graph :: Graph,
+                           maxSteps :: Int,
+                           sharedPenalties :: MVar (PenaltyMap),
+                           cliqueChan :: Chan (Set),
+                           penaltyDelay :: Int}
+
+type SharedState = (MVar PenaltyMap, Chan Set)
+type MyStateMonad s a = StateT s IO a
+type CliqueState a = ReaderT Settings (StateT EvalState IO) a
 
 -- | Builds the shared state across our threads
 getSharedState :: Int -> IO (SharedState)
 getSharedState n = do
   penaltySTM <- newMVar (DM.fromList [(x, (0, x)) | x <- [0..n-1]])
-  numSteps <- newMVar 0
-  bestClique <- newMVar 0
   foundCliques <- newChan
-  return (penaltySTM, numSteps, bestClique, foundCliques)
+  return (penaltySTM, foundCliques)
 
 -- | Get the initial state for a thread.
-getInitial :: Graph -> Int -> SharedState -> IO (EvalState)
-getInitial g pd (penaltySTM, numSteps, bestClique, foundCliques) = do
-  n <- return (nodeCount g)
+getInitial :: Graph -> IO (EvalState)
+getInitial g = do
+  let n = nodeCount g
   initialVertex <- randomRIO (0, n-1)
-  return EvalState {graph = g,
-                    currentClique = 0 `setBit` initialVertex,
-                    bestClique = bestClique,
-                    numSteps = numSteps,
-                    lastAdded = Nothing,
-                    penaltyDelay = pd,
-                    penalty = penaltySTM,
-                    updateCycle = 1,
-                    alreadyUsed = 0,
-                    foundCliques = foundCliques}
+  return EvalState { currentClique = 0 `setBit` initialVertex,
+                     bestClique = 0,
+                     numSteps = 0,
+                     lastAdded = initialVertex,
+                     penalty = DM.empty,
+                     updateCycle = 1,
+                     alreadyUsed = 0,
+                     is = [] }
 
 -- | Dynamic Local Search for a Maximum Clique
-dls :: Int -> CliqueState Set
-dls maxSteps = do
+dls :: CliqueState ()
+dls = do
+  settings <- ask
   st <- get
-  ns <- liftIO $ readMVar (numSteps st)
-  if (ns < maxSteps) then
+  let ns = numSteps st
+      ms = maxSteps settings
+      mvPM = sharedPenalties settings
+  if (ns < ms) then
     do
-      -- liftIO $ putStrLn ("Paso -> " ++ (show ns))
+      -- We must fully calculate the improvement set ONCE.
+      put st {is = improvementSet (graph settings) (currentClique st) (alreadyUsed st) }
+      -- Then we must retrieve the current penalty map for this iteration
+      pm <- liftIO $ readMVar mvPM
+      put st { penalty = pm }
+      -- We do a single expand/plateau phase
       expand
       plateau (currentClique st)
+      -- Expand/Plateau until no more
       phases
+      -- Update global penalties
       updatePenalties
       restart
-      dls maxSteps
-  else liftIO (readMVar (bestClique st))
+      dls
+  else return ()
 
 inc :: Int -> IO (Int)
 inc = return . succ
@@ -81,32 +93,38 @@ inc = return . succ
 expand :: CliqueState ()
 expand = do
   st <- get
-  let au = alreadyUsed st
-  is <- return $ improvementSet (graph st) (currentClique st) au
-  if (null is)
+  settings <- ask
+  let mis = is st
+  if (null mis)
     then updateBest
-    else do v <- selectBestHeuristic is
-            newClique <- return $ (currentClique st) `setBit` v
-            liftIO $ modifyMVar_ (numSteps st) inc
-            put st {currentClique = newClique, lastAdded = Just v,
-                    alreadyUsed = (alreadyUsed st) `setBit` v}
+    else do v <- selectMinPenalty mis
+            let newClique = (currentClique st) `setBit` v
+                newAlreadyUsed = (alreadyUsed st) `setBit` v
+            put st {currentClique = newClique, lastAdded = v,
+                    alreadyUsed = newAlreadyUsed, numSteps = (numSteps st) + 1,
+                    is = updateImprovementSet (graph settings) mis v newAlreadyUsed}
             expand
 
 -- | Swap nodes from the current clique
 plateau :: Set -> CliqueState ()
 plateau c' = do
   st <- get
+  settings <- ask
   let au = alreadyUsed st
-  ls <- return $ levelSet (graph st) (currentClique st) au
-  is <- return $ improvementSet (graph st) (currentClique st) au
-  if and [null is, not (null ls), ((currentClique st) .&. c') /= 0 ]
-    then do v <- selectBestHeuristic ls
-            let remove = (disconnectedOne (graph st) v (currentClique st))
-            newClique <- return $ (currentClique st) `setBit` v `clearBit` remove
-            liftIO $ modifyMVar_ (numSteps st) inc
-            put st {currentClique = newClique, lastAdded = Just v,
-                    alreadyUsed = (alreadyUsed st) `setBit` v}
-            plateau c'
+  let ls = levelSet (graph settings) (currentClique st) au
+  if and [((currentClique st) .&. c') /= 0, not (null ls)]
+    then do v <- selectMinPenalty ls
+            let remove = (disconnectedOne (graph settings) v (currentClique st))
+                newClique = (currentClique st) `setBit` v `clearBit` remove
+                newAlreadyUsed = (alreadyUsed st) `setBit` v
+                oldClique = (currentClique st)
+            put st {currentClique = newClique, lastAdded =  v,
+                    alreadyUsed = newAlreadyUsed, numSteps = (numSteps st) + 1,
+                    is = updateImprovementSetS (graph settings) oldClique ls remove v newAlreadyUsed}
+            let newIs = is st
+            if null newIs
+              then plateau c'
+              else return ()
     else return ()
 
 
@@ -114,40 +132,43 @@ plateau c' = do
 updateBest :: CliqueState ()
 updateBest = do
   st <- get
-  liftIO $ modifyMVar_ (bestClique st) $ \bc -> do
-    if popCount bc < popCount (currentClique st)
-      then do writeChan (foundCliques st) (currentClique st)
-              return (currentClique st)
-      else return bc
+  let bc = bestClique st
+      cc = currentClique st
+  if popCount bc < popCount cc
+    then do settings <- ask
+            let chan = cliqueChan settings
+            liftIO $ writeChan chan cc
+            put st { bestClique = cc }
+    else return ()
 
 -- | Select the node with minimum penalty.
 selectMinPenalty :: [Int] -> CliqueState Int
 selectMinPenalty set = do
   st <- get
-  penalties <- liftIO $ readMVar (penalty st)
+  let penalties = (penalty st)
   let ans = minimum (map (\x -> (fromJust (DM.lookup x penalties))) set)
   return (snd ans)
 
--- | Heuristic search mixing penalties and node degree
-selectBestHeuristic :: [Int] -> CliqueState Int
-selectBestHeuristic set = do
-  st <- get
-  pe <- liftIO $ readMVar (penalty st)
-  let dg = degree (graph st)
-  let maxi = maxDegree (graph st)
-  let ans = DF.minimum (lOrd maxi dg pe)
-  return (snd ans)
-  where
-    lOrd maxi dg pe = Prelude.map (\(val,pos) -> ( val*(maxi-(dg V.! pos)) ,pos)) (lPen pe)
-    lPen pe = Prelude.map (\x -> (fromJust (DM.lookup x pe))) set
+-- -- | Heuristic search mixing penalties and node degree
+-- selectBestHeuristic :: [Int] -> CliqueState Int
+-- selectBestHeuristic set = do
+--   st <- get
+--   pe <- liftIO $ readMVar (penalty st)
+--   let dg = degree (graph st)
+--   let maxi = maxDegree (graph st)
+--   let ans = DF.minimum (lOrd maxi dg pe)
+--   return (snd ans)
+--   where
+--     lOrd maxi dg pe = Prelude.map (\(val,pos) -> ( val*(maxi-(dg V.! pos)) ,pos)) (lPen pe)
+--     lPen pe = Prelude.map (\x -> (fromJust (DM.lookup x pe))) set
 
 -- | Phases of expand and plateau search
 phases :: CliqueState ()
 phases = do
   st <- get
   let au = alreadyUsed st
-  is <- return $ improvementSet (graph st) (currentClique st) au
-  if (null is)
+      mis = is st
+  if (null mis)
     then return ()
     else do expand
             plateau (currentClique st)
@@ -157,11 +178,13 @@ phases = do
 updatePenalties :: CliqueState ()
 updatePenalties = do
   st <- get
-  let dec = if ((updateCycle st) `mod` (penaltyDelay st)) == 0 then -1 else 0
-  let cc = currentClique st
-  liftIO $ modifyMVar_ (penalty st) $ \penalties ->
+  settings <- ask
+  let mvPM = sharedPenalties settings
+      dec = if ((updateCycle st) `mod` (penaltyDelay settings)) == 0 then -1 else 0
+      cc = currentClique st
+  liftIO $ modifyMVar_ mvPM $ \penalties ->
     return ((DF.foldl' (go cc dec) penalties
-             [0..(nodeCount (graph st))-1]))
+             [0..(nodeCount (graph settings))-1]))
   put st {updateCycle = (updateCycle st) + 1}
   where go cc dec penaltyMap node = DM.adjustWithKey (modifyPenalty cc dec)
                                     node penaltyMap
@@ -172,8 +195,10 @@ updatePenalties = do
 restart :: CliqueState ()
 restart = do
   st <- get
-  put st {currentClique = 0 `setBit` (fromJust (lastAdded st)),
+  put st {currentClique = 0 `setBit` (lastAdded st),
           alreadyUsed = 0}
+
+goDLS graph settings = getInitial graph >>= runStateT (runReaderT dls settings)
 
 main :: IO ()
 main = do
@@ -182,12 +207,15 @@ main = do
   case parseByteString "" file of
     Right (GraphEdges n _ e) ->
       do
-        shared@(_, _, _, chan) <- getSharedState n
+        shared@(mvPM, chan) <- getSharedState n
         let graph = createGraph n e
         forM [1..4] $ \x -> do
           forkIO $ do
-            initialState <- getInitial graph 1 shared
-            runStateT (dls 15000000) initialState
+            goDLS graph Settings { graph = graph,
+                                   maxSteps = 10000,
+                                   penaltyDelay = 1,
+                                   sharedPenalties = mvPM,
+                                   cliqueChan = chan}
             putStrLn "Listo."
         cliques <- getChanContents chan
         forM cliques $ \clique -> do
