@@ -1,9 +1,11 @@
 #include <boost/dynamic_bitset.hpp>
 #include <vector>
 #include "graph.hpp"
+#include <iostream>
 
 graph_t::graph_t(int _n, int _m) : n(_n), m(_m) {
     matrix.resize(n);
+    degree.resize(n);
     for (int i=0; i<n; i++)
 	matrix[i] = boost::dynamic_bitset<>(n);
 }
@@ -11,6 +13,8 @@ graph_t::graph_t(int _n, int _m) : n(_n), m(_m) {
 void graph_t::add_edge(int a, int b) {
     matrix[a][b] = 1;
     matrix[b][a] = 1;
+    degree[a]++;
+    degree[b]++;
 }
 
 bool graph_t::connected(int a, int b) {
@@ -20,6 +24,16 @@ bool graph_t::connected(int a, int b) {
 bool graph_t::connectedAll(int x, boost::dynamic_bitset<>& cc) {
     return (matrix[x] & cc) == cc;
 }
+
+// int graph_t::swapWith(boost::dynamic_bitset<> bm, int lo, int hi) {
+//     int mid = (lo+hi)/2;
+//     // std::cout << "mid=" << mid << std::endl;
+//     if (bm[mid]) return mid;
+//     else if (! (bm & masks[mid]).count())
+//     	return swapWith(bm, mid+1, hi);
+//     else
+//     	return swapWith(bm, lo, mid-1);
+// }
 
 int graph_t::swapWith(boost::dynamic_bitset<> bm) {
     return bm.find_first();

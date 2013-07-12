@@ -42,7 +42,6 @@ void state_t::expand() {
 	numSteps++;
 	currentImprovementSet = updateImprovementSet(g, currentImprovementSet, v,
 						     alreadyUsed);
-	// std::cout << "Aqui" << std::endl;
     }
     updateBest();
 }
@@ -54,6 +53,8 @@ void state_t::plateau() {
     while ((currentClique & currentCopy).count() != 0 && !ls.empty()){
 	v = select(ls);
 	remove = g->disconnectedOne(v, currentClique);
+	// std::cout << "Seleccione -> " << v << std::endl;
+	// std::cout << "Cambiando por -> " << remove << std::endl;
 	currentClique[v] = 1;
 	currentClique[remove] = 0;
 	alreadyUsed[v] = 1;
@@ -61,6 +62,7 @@ void state_t::plateau() {
 	lastAdded = v;
 	currentImprovementSet = improvementSet(g, currentClique, alreadyUsed);
 	if (!currentImprovementSet.empty()) break;
+	ls = levelSet(g, currentClique, alreadyUsed);
     }
 }
 
@@ -90,7 +92,7 @@ void state_t::restart() {
     currentClique[v] = 1;
     alreadyUsed.reset();
     currentImprovementSet = improvementSet(g, currentClique, alreadyUsed);
-    // std::cout << numSteps << std::endl; // "Reiniciando en " << v << std::endl;
+    std::cout << numSteps << std::endl; // "Reiniciando en " << v << std::endl;
 }
 
 int dls(state_t& st) {
@@ -98,8 +100,8 @@ int dls(state_t& st) {
 	// std::cout << "Paso -> " << st.numSteps << std::endl;
 	st.expand();
 	st.plateau();
-	// st.phases();
-	// st.update();
+	st.phases();
+	st.update();
 	st.restart();
     }
     return st.bestClique.count();
