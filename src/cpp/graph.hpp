@@ -1,7 +1,7 @@
 #ifndef GRAPH_H
 #define GRAPH_H
-#include <boost/dynamic_bitset.hpp>
 #include <vector>
+#include <boost/dynamic_bitset.hpp>
 
 struct graph_t {
     std::vector<boost::dynamic_bitset<> > matrix;

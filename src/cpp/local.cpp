@@ -1,25 +1,30 @@
-#include "local.hpp"
-#include "graph.hpp"
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <string>
 #include <vector>
-#include <boost/dynamic_bitset.hpp>
 #include <cstdlib>
 #include <algorithm>
-#include <time.h>
+#include <ctime>
+#include <boost/dynamic_bitset.hpp>
+#include <boost/thread.hpp>
+#include "local.hpp"
+#include "graph.hpp"
+
+std::vector<int> global_penalty;
+boost::mutex m_;
 
 state_t::state_t(graph_t *_g, int _maxSteps, int _penaltyDelay)
     :  numSteps(0), updateCycle(1), g(_g), maxSteps(_maxSteps),
        penaltyDelay(_penaltyDelay) {
+    boost::lock_guard<boost::mutex> guard(m_);
     srand (time(NULL));
     int initialVertex = rand() % g->n;
     currentClique = boost::dynamic_bitset<>(g->n);
     currentClique[initialVertex] = 1;
     bestClique = currentClique;
     alreadyUsed = boost::dynamic_bitset<>(g->n);
-    penalty.assign(g->n, 0);
+    penalty.assign(global_penalty.begin(), global_penalty.end());
     currentImprovementSet = improvementSet(g, currentClique, alreadyUsed);
     lastAdded = initialVertex;
 }
@@ -95,6 +100,14 @@ void state_t::restart() {
     //    std::cout << numSteps << std::endl; // "Reiniciando en " << v << std::endl;
 }
 
+// struct DLS {
+//     state_t st;
+//     DLS(graph *g, int steps, int pd) : st(g, steps, pd) {}
+//     void operator()() {
+// 	// while (st->num)
+//     }
+// };
+
 int dls(state_t& st) {
     while (st.numSteps < st.maxSteps) {
 	// std::cout << "Paso -> " << st.numSteps << std::endl;
@@ -123,6 +136,7 @@ int main(int argc, char *argv[]) {
 		int n, m;
 		iss >> g1 >> g2 >> n >> m;
 		g = new graph_t(n, m);
+		global_penalty.assign(g->n, 0);
 		continue;
 	    }
 	    int a, b;

@@ -1,5 +1,5 @@
-#include <boost/dynamic_bitset.hpp>
 #include <vector>
+#include <boost/dynamic_bitset.hpp>
 #include "graph.hpp"
 #include <iostream>
 
