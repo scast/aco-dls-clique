@@ -92,7 +92,7 @@ void state_t::restart() {
     currentClique[v] = 1;
     alreadyUsed.reset();
     currentImprovementSet = improvementSet(g, currentClique, alreadyUsed);
-    std::cout << numSteps << std::endl; // "Reiniciando en " << v << std::endl;
+    //    std::cout << numSteps << std::endl; // "Reiniciando en " << v << std::endl;
 }
 
 int dls(state_t& st) {
