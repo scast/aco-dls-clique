@@ -1,5 +1,5 @@
 {-# LANGUAGE PackageImports #-}
--- module LocalSearch (setInitial) where
+module LocalSearch (Settings(..), goDLS) where
 import Data.Bits
 import Data.Maybe (fromJust)
 import qualified Data.Vector as V
@@ -36,16 +36,8 @@ data Settings = Settings { graph :: !Graph,
                            cliqueChan :: !(Chan (Set)),
                            penaltyDelay :: !Int }
 
-type SharedState = (MVar PenaltyMap, Chan Set)
 type MyStateMonad s a = StateT s IO a
 type CliqueState a = ReaderT Settings (StateT EvalState IO) a
-
--- | Builds the shared state across our threads
-getSharedState :: Int -> IO (SharedState)
-getSharedState n = do
-  penaltySTM <- newMVar (DM.fromList [(x, (0, x)) | x <- [0..n-1]])
-  foundCliques <- newChan
-  return (penaltySTM, foundCliques)
 
 -- | Get the initial state for a thread.
 getInitial :: Graph -> IO (EvalState)
@@ -206,41 +198,3 @@ restart = do
           alreadyUsed = 0}
 
 goDLS graph settings = getInitial graph >>= runStateT (runReaderT dls settings)
-
-setToList :: Int -> Set -> [Int]
-setToList n xs = filter inClique [0..(n-1)]
-  where inClique = testBit xs
-
-valid graph clique = and [connected graph (nodes!!x) (nodes!!y) | x <- [0..(m-1)], y <- [(x+1)..(m-1)]]
-  where nodes = setToList n clique
-        n = nodeCount graph
-        m = length nodes
-        inClique x = clique `testBit` x
-
-main :: IO ()
-main = do
-  [filename, spd, steps, wanted] <- getArgs
-  file <- B.readFile filename
-  case parseByteString "" file of
-    Right (GraphEdges n _ e) ->
-      do
-        shared@(mvPM, chan) <- getSharedState n
-        let graph = createGraph n e
-        forM [1..4] $ \x -> do
-          forkIO $ do
-            putStrLn "Buscando"
-            goDLS graph Settings { graph = graph,
-                                   maxSteps = read steps,
-                                   penaltyDelay = read spd,
-                                   sharedPenalties = mvPM,
-                                   cliqueChan = chan}
-            putStrLn "Listo."
-        cliques <- getChanContents chan
-        forM cliques $ \clique -> do
-          putStrLn ("Se consiguio un clique de tamano " ++(show (popCount clique)))
-          putStrLn $ show (valid graph clique)
-          -- if popCount clique >= (read wanted)
-          --   then exitSuccess
-          --   else return ()
-        putStrLn "Muerete que chao."
-    Left e -> error "Nope."
