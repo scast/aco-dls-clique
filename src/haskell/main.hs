@@ -10,7 +10,7 @@ import System.Exit
 import System.Environment
 
 import Graph
-import Parser
+import MyParser
 import LocalSearch
 
 type SharedState = (MVar PenaltyMap, Chan Set)
@@ -40,7 +40,7 @@ main = do
       do
         shared@(mvPM, chan) <- getSharedState n
         let graph = createGraph n e
-        forM [1..4] $ \x -> do
+        forM [1..8] $ \x -> do
           forkIO $ do
             putStrLn "Buscando"
             goDLS graph Settings { graph = graph,

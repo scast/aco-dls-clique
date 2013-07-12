@@ -8,7 +8,7 @@
 -}
 
 -- | A simple module for parsing CNF files in DIMACS format.
-module Parser
+module MyParser
     ( parseByteString
     , parseFile
     , GraphEdges(..)

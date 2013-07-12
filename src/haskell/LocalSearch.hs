@@ -17,7 +17,7 @@ import "mtl" Control.Monad.State
 import "mtl" Control.Monad.Reader
 
 import Graph
-import Parser
+import MyParser
 
 type PenaltyMap = (DM.IntMap (Int, Int))
 
