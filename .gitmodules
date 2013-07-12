@@ -1,0 +1,3 @@
+[submodule "dimacs-converter"]
+	path = dimacs-converter
+	url = https://code.google.com/p/dimacs-converter

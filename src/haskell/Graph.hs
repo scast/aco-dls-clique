@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, TypeOperators #-}
 module Graph (createGraph, connected, connectedAll, disconnectedOne, nodeCount,
               improvementSet, levelSet, updateImprovementSet, updateImprovementSetS, Set, Graph, degree, maxDegree) where
 import Data.Bits
@@ -8,7 +8,8 @@ import Prelude hiding (all)
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
 import Data.BitSet.Dynamic (FasterInteger)
-
+import Control.Arrow (first,(&&&))
+import Data.MemoTrie
 
 type Matrix = V.Vector FasterInteger
 type Set = FasterInteger
@@ -56,11 +57,11 @@ swapWith bm lo hi = let mid = (lo+hi) `div` 2
                     in if (bm `testBit` mid)
                        then mid
                        else if (bm .&. ((0 `setBit` mid) -1)) == 0
-                            then swapWith bm mid hi
+                            then swapWith bm (mid+1) hi
                             else swapWith bm lo (mid-1)
 
 -- | Returns the element to swap `x` with in `cc`.
-disconnectedOne g x cc = swapWith (bm `xor` cc) 0 (n-1)
+disconnectedOne g x cc =  swapWith (bm `xor` cc) 0 (n-1)
   where m = matrix g
         n = nodeCount g
         bm = ((m V.! x) .&. cc)
@@ -77,6 +78,8 @@ improvementSet g cc alreadyUsed = filter cond [0..(nodeCount g)-1]
   where
     cond x = (not (alreadyUsed `testBit` x)) && (not (cc `testBit` x)) && (connectedAll g x cc)
 
+-- improvementSet g cc alreadyUsed = memo2 (improvementSet' g) cc alreadyUsed
+
 -- | Update the improvement set after expanding the clique with node v
 updateImprovementSet :: Graph -> [Int] -> Int -> Set -> [Int]
 updateImprovementSet g i0 v alreadyUsed = filter cond i0
@@ -86,7 +89,7 @@ updateImprovementSet g i0 v alreadyUsed = filter cond i0
 updateImprovementSetS :: Graph -> Set -> [Int] -> Int -> Int -> Set -> [Int]
 updateImprovementSetS g cc0 l0 x v alreadyUsed = filter cond l0
   where cond y = (y /= v) && ((disconnectedOne g y cc0) == x) &&
-                 not (alreadyUsed `testBit` y)
+                 (connected g y v) && not (alreadyUsed `testBit` y)
 
 -- | The vertex set of possible swaps for a clique `cc`
 levelSet :: Graph -> Set -> Set -> [Int]
@@ -94,3 +97,42 @@ levelSet g cc alreadyUsed = filter cond [0..(nodeCount g)-1]
   where
     !bc = popCount cc
     cond !x = not (cc `testBit` x) && not (alreadyUsed `testBit` x) && isDisconnectedFromOne g x cc bc
+
+-- levelSet g cc alreadyUsed = memo2 (levelSet' g) (unFI cc) (unFI alreadyUsed)
+
+
+-- instance HasTrie FasterInteger where
+--     newtype FasterInteger :->: a = FasterIntegerTrie ((Bool,[Bool]) :->: a)
+--     trie f = FasterIntegerTrie (trie (f . unbitsZ))
+--     untrie (FasterIntegerTrie t) = untrie t . bitsZ
+--     enumerate (FasterIntegerTrie t) = enum' unbitsZ t
+
+-- unbitsZ :: (Num n, Bits n) => (Bool,[Bool]) -> n
+-- unbitsZ (positive,bs) = sig (unbits bs)
+--  where
+--    sig | positive  = id
+--        | otherwise = negate
+
+-- bitsZ :: (Num n, Ord n, Bits n) => n -> (Bool,[Bool])
+-- bitsZ = (>= 0) &&& (bits . abs)
+
+-- enum' :: (HasTrie a) => (a -> a') -> (a :->: b) -> [(a', b)]
+-- enum' f = (fmap.first) f . enumerate
+
+
+-- -- | Extract bits in little-endian order
+-- bits :: (Num t, Bits t) => t -> [Bool]
+-- bits 0 = []
+-- bits x = testBit x 0 : bits (shiftR x 1)
+
+-- -- | Convert boolean to 0 (False) or 1 (True)
+-- unbit :: Num t => Bool -> t
+-- unbit False = 0
+-- unbit True  = 1
+
+-- -- | Bit list to value
+-- unbits :: (Num t, Bits t) => [Bool] -> t
+-- unbits [] = 0
+-- unbits (x:xs) = unbit x .|. shiftL (unbits xs) 1
+
+-- unFI (FasterInteger x) = x

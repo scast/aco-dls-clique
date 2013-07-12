@@ -8,6 +8,7 @@ import qualified Data.Foldable as DF
 import qualified Data.IntMap as DM
 import System.Random
 import System.Environment
+import System.Exit
 import Control.Concurrent
 import Control.Concurrent.Chan
 import Control.Concurrent.MVar
@@ -20,20 +21,20 @@ import Parser
 
 type PenaltyMap = (DM.IntMap (Int, Int))
 
-data EvalState = EvalState { currentClique :: Set,
-                             bestClique :: Set,
-                             numSteps ::  Int,
-                             penalty :: PenaltyMap,
-                             lastAdded :: Int,
-                             updateCycle :: Int,
-                             alreadyUsed :: Set,
-                             is :: [Int] }
+data EvalState = EvalState { currentClique :: !Set,
+                             bestClique :: !Set,
+                             numSteps ::  !Int,
+                             penalty :: !PenaltyMap,
+                             lastAdded :: !Int,
+                             updateCycle :: !Int,
+                             alreadyUsed :: !Set,
+                             is :: ![Int] }
 
-data Settings = Settings { graph :: Graph,
-                           maxSteps :: Int,
-                           sharedPenalties :: MVar (PenaltyMap),
-                           cliqueChan :: Chan (Set),
-                           penaltyDelay :: Int}
+data Settings = Settings { graph :: !Graph,
+                           maxSteps :: !Int,
+                           sharedPenalties :: !(MVar (PenaltyMap)),
+                           cliqueChan :: !(Chan (Set)),
+                           penaltyDelay :: !Int }
 
 type SharedState = (MVar PenaltyMap, Chan Set)
 type MyStateMonad s a = StateT s IO a
@@ -70,15 +71,17 @@ dls = do
       mvPM = sharedPenalties settings
   if (ns < ms) then
     do
+      -- liftIO $ putStrLn ("Paso -> " ++ (show ns))
       -- We must fully calculate the improvement set ONCE.
-      put st {is = improvementSet (graph settings) (currentClique st) (alreadyUsed st) }
       -- Then we must retrieve the current penalty map for this iteration
+      let newIs = improvementSet (graph settings) (currentClique st) (alreadyUsed st)
       pm <- liftIO $ readMVar mvPM
-      put st { penalty = pm }
+      put st { is = newIs, penalty = pm }
       -- We do a single expand/plateau phase
       expand
       plateau (currentClique st)
       -- Expand/Plateau until no more
+      -- -- liftIO $ putStrLn "Llegue a phases"
       phases
       -- Update global penalties
       updatePenalties
@@ -102,7 +105,9 @@ expand = do
                 newAlreadyUsed = (alreadyUsed st) `setBit` v
             put st {currentClique = newClique, lastAdded = v,
                     alreadyUsed = newAlreadyUsed, numSteps = (numSteps st) + 1,
-                    is = updateImprovementSet (graph settings) mis v newAlreadyUsed}
+                    is = updateImprovementSet (graph settings) mis v newAlreadyUsed
+                    -- is = improvementSet (graph settings) newClique newAlreadyUsed
+                   }
             expand
 
 -- | Swap nodes from the current clique
@@ -120,7 +125,9 @@ plateau c' = do
                 oldClique = (currentClique st)
             put st {currentClique = newClique, lastAdded =  v,
                     alreadyUsed = newAlreadyUsed, numSteps = (numSteps st) + 1,
-                    is = updateImprovementSetS (graph settings) oldClique ls remove v newAlreadyUsed}
+                    is = improvementSet (graph settings) newClique newAlreadyUsed
+                    -- is = updateImprovementSetS (graph settings) oldClique ls remove v newAlreadyUsed
+                   }
             let newIs = is st
             if null newIs
               then plateau c'
@@ -200,9 +207,19 @@ restart = do
 
 goDLS graph settings = getInitial graph >>= runStateT (runReaderT dls settings)
 
+setToList :: Int -> Set -> [Int]
+setToList n xs = filter inClique [0..(n-1)]
+  where inClique = testBit xs
+
+valid graph clique = and [connected graph (nodes!!x) (nodes!!y) | x <- [0..(m-1)], y <- [(x+1)..(m-1)]]
+  where nodes = setToList n clique
+        n = nodeCount graph
+        m = length nodes
+        inClique x = clique `testBit` x
+
 main :: IO ()
 main = do
-  [filename, spd, steps] <- getArgs
+  [filename, spd, steps, wanted] <- getArgs
   file <- B.readFile filename
   case parseByteString "" file of
     Right (GraphEdges n _ e) ->
@@ -211,6 +228,7 @@ main = do
         let graph = createGraph n e
         forM [1..4] $ \x -> do
           forkIO $ do
+            putStrLn "Buscando"
             goDLS graph Settings { graph = graph,
                                    maxSteps = read steps,
                                    penaltyDelay = read spd,
@@ -220,5 +238,9 @@ main = do
         cliques <- getChanContents chan
         forM cliques $ \clique -> do
           putStrLn ("Se consiguio un clique de tamano " ++(show (popCount clique)))
+          putStrLn $ show (valid graph clique)
+          -- if popCount clique >= (read wanted)
+          --   then exitSuccess
+          --   else return ()
         putStrLn "Muerete que chao."
     Left e -> error "Nope."

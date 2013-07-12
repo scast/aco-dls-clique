@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+./local +RTS -K1536M -N4 -H512M -RTS $1 $2 $3 $4
