@@ -19,7 +19,7 @@ struct graph_t {
 
 std::vector<int> improvementSet(graph_t *g, boost::dynamic_bitset<>& cc,
 				boost::dynamic_bitset<> alreadyUsed);
-std::vector<int> levelSet(graph_t *g, boost::dynamic_bitset<>& cc,
+std::vector<int> levelSet(graph_t *g, boost::dynamic_bitset<> cc,
 			  boost::dynamic_bitset<> alreadyUsed);
 
 std::vector<int> updateImprovementSet(graph_t *g, std::vector<int> i0, int v,

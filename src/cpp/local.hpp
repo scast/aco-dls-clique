@@ -14,8 +14,10 @@ struct state_t {
     graph_t *g;
     int maxSteps, penaltyDelay;
 
-    state_t(graph_t *g, int maxSteps, int penaltyDelay);
 
+    // state_t(state_t *st);
+    state_t(graph_t *g, int maxSteps, int penaltyDelay);
+    state_t(graph_t *_g, int _maxSteps, int _penaltyDelay, std::vector<int>& gp);
     void expand();
     void plateau();
     void updateBest();
