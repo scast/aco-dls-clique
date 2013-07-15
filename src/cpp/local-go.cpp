@@ -1,4 +1,3 @@
-#include <vector>
 #include <boost/thread.hpp>
 #include "local.hpp"
 #include "graph.hpp"
@@ -9,18 +8,16 @@ int main(int argc, char *argv[]) {
     char *filename = argv[1], *spd=argv[2], *steps=argv[3], *cons=argv[4];
     graph_t *g = parse(filename);
     boost::thread threads[MAX_THREADS];
-    std::vector<DLS> dls;
+    DLS *dls = new DLS[MAX_THREADS];
     std::cout << "Iniciando busqueda" << std::endl;
-    for (int i=0; i<MAX_THREADS; i++) dls.push_back(DLS(new state_t(g, atoi(steps), atoi(spd))));
+    for (int i=0; i<MAX_THREADS; i++)
+	dls[i] = DLS(new state_t(g, atoi(steps), atoi(spd)));
     for (int c=0; c<atoi(cons); c++) {
-	for (int i=0; i<MAX_THREADS; i++) threads[i] = boost::thread(dls[i]);
-	for (int i=0; i<MAX_THREADS; i++) threads[i].join();
+    	for (int i=0; i<MAX_THREADS; i++) threads[i] = boost::thread(dls[i]);
+    	for (int i=0; i<MAX_THREADS; i++) threads[i].join();
+    	// for (int i=0; i<MAX_THREADS; i++) dls[i]();
     	// std::cout << "Consolidando" << std::endl;
-    	std::vector<int> global_penalties = sync(g->n, dls);
- 	for (int i=0; i<MAX_THREADS; i++) {
-	    dls[i].st->penalty = global_penalties;
-	    dls[i].st->numSteps = 0;
-	}
+    	sync(g->n, dls);
     }
     std::cout << "Listo" << std::endl;
     std::cout << "Maximo tamano -> " << maxSize << std::endl;

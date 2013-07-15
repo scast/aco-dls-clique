@@ -18,73 +18,92 @@ boost::shared_mutex _access;
 std::set<set_t> bests;
 int maxSize;
 
+
 state_t::state_t(graph_t *_g, int _maxSteps, int _penaltyDelay)
     :  numSteps(0), updateCycle(1), g(_g), maxSteps(_maxSteps),
-       penaltyDelay(_penaltyDelay), penalty(_g->n, 0) {
+       penaltyDelay(_penaltyDelay) {
+
+    // Select a random node to start the search.
     srand (time(NULL));
     int initialVertex = rand() % g->n;
+
+    // Store the current clique.
     currentClique = set_t(g->n);
     currentClique[initialVertex] = 1;
     bestClique = currentClique;
-    alreadyUsed = set_t(g->n);
-    currentImprovementSet.reserve(g->n);
-    improvementSet(g, currentClique, alreadyUsed, currentImprovementSet);
     lastAdded = initialVertex;
+
+    // Mark which nodes are already tried on.
+    alreadyUsed = set_t(g->n);
+
+    // Initialize penalty, improvementSet, levelSet.
+    penalty = new int[g->n];
+    for (int i=0; i<g->n; i++)
+	penalty[i] = 0;
+    sorter.penalties = penalty;
+    sortedPenalty = new int[g->n];
+    for (int i=0; i<g->n; i++)
+	sortedPenalty[i] = i;
+    // currentImprovementSet = new int[g->n];
+    // currentLevelSet = new int[g->n];
+    is = improvementSet(g, currentClique, alreadyUsed, sortedPenalty, 0);
+    ls = -1;
+    // isSize = improvementSet(g, currentClique, alreadyUsed,
+    // 			    currentImprovementSet);
+    // lsSize = 0;
 }
 
-int state_t::select(std::vector<int>& s) {
+state_t::~state_t() {
+    delete[] penalty;
+    // delete[] currentLevelSet;
+    // delete[] currentImprovementSet;
+}
+
+int state_t::select(int *s, int n) {
     int minval = 0x3f3f3f3f, minpos;
-    for (unsigned int i=0; i<s.size(); i++)
-	if (penalty[s[i]] < minval) minval = penalty[s[i]], minpos = s[i];
-    std::vector<int> going;
-    going.reserve(g->n);
-    for (int i=0; i<s.size(); i++)
-	if (penalty[s[i]] == minval)
-	    going.push_back(s[i]);
-    int r =rand() % going.size();
-    return going[r]; // minpos;
+    for (int i=0; i<n; i++)
+	if (penalty[s[i]] < minval)
+	    minval = penalty[s[i]], minpos = s[i];
+    return minpos;
 }
 
 void state_t::expand() {
     int v;
-    while (!currentImprovementSet.empty()) {
-	// std::cout << "Aqui 01" << std::endl;
-	v = select(currentImprovementSet);
-	// std::cout << "Aqui 01" << std::endl;
+    while (is.first != -1) {
+	// v = select(currentImprovementSet, isSize);
+	v = is.first;
 	currentClique[v] = 1;
-	// std::cout << "Aqui 01" << std::endl;
 	alreadyUsed[v] = 1;
-	// std::cout << "Aqui 01" << std::endl;
 	lastAdded = v;
-	// std::cout << "Aqui 01" << std::endl;
 	numSteps++;
-	// std::cout << "Aqui 01" << std::endl;
-	// currentImprovementSet = improvementSet(g, currentClique, alreadyUsed);
-	// std::cout << "Aqui 02" << std::endl;
-	updateImprovementSet(g, currentImprovementSet, v, alreadyUsed);
-	// std::cout << "Aqui 03" << std::endl;
+	// std::cout << "updateimp" << std::endl;
+	is = improvementSet(g, currentClique, alreadyUsed,
+			    sortedPenalty, is.second);
+	// is = updateImprovementSet(g, currentImprovementSet, isSize,
+	// 			      v, alreadyUsed);
+	// std::cout << "pegado" << std::endl;
     }
     updateBest();
 }
 
 void state_t::plateau() {
     set_t currentCopy = currentClique;
-    std::vector<int> ls;
-    ls.reserve(g->n);
-    levelSet(g, currentClique, alreadyUsed, ls);
-    int remove, v;
-    while ((currentClique & currentCopy).count() != 0 && !ls.empty()){
-	v = select(ls);
-	remove = g->disconnectedOne(v, currentClique);
-	currentClique[v] = 1;
+    int remove;
+    ls = levelSet(g, currentClique, alreadyUsed, sortedPenalty);
+    while (ls != -1 && (currentClique & currentCopy).count() != 0) {
+	// v = select(currentLevelSet, lsSize);
+	remove = g->disconnectedOne(ls, currentClique);
+	currentClique[ls] = 1;
 	currentClique[remove] = 0;
-	alreadyUsed[v] = 1;
+	alreadyUsed[ls] = 1;
 	numSteps++;
-	lastAdded = v;
-	improvementSet(g, currentClique, alreadyUsed,
-		       currentImprovementSet);
-	if (!currentImprovementSet.empty()) break;
-	levelSet(g, currentClique, alreadyUsed, ls);
+	lastAdded = ls;
+	is = improvementSet(g, currentClique, alreadyUsed,
+			    sortedPenalty, 0);
+	// isSize = improvementSet(g, currentClique, alreadyUsed,
+	// 			currentImprovementSet);
+	if (is.first != -1) break;
+	ls = levelSet(g, currentClique, alreadyUsed, sortedPenalty);
     }
 }
 
@@ -114,7 +133,7 @@ void state_t::updateBest() {
 }
 
 void state_t::phases() {
-    while (!currentImprovementSet.empty()) {
+    while (is.first != -1) {
 	expand();
 	plateau();
     }
@@ -123,42 +142,52 @@ void state_t::phases() {
 void state_t::update() {
     int dec = (updateCycle % penaltyDelay == 0) ? -1 : 0;
     for (int i=0; i<g->n; i++)
-	penalty[i] = std::max(0, penalty[i] + dec + (currentClique[i] ? 1 : 0));
+    	penalty[i] = std::max(0, penalty[i] + dec + (currentClique[i] ? 1 : 0));
     updateCycle++;
 }
 
 void state_t::restart() {
+    int v;
     if (penaltyDelay > 1) {
-	int v = lastAdded;
+	v = lastAdded;
 	currentClique.reset();
 	currentClique[v] = 1;
     } else {
-	int v = rand() % g->n;
+	v = rand() % g->n;
 	currentClique[v] = 1;
 	for (int i=0; i<g->n; i++)
 	    if (i != v && currentClique[i] && !g->connected(i, v))
 		currentClique[i] = 0;
     }
     alreadyUsed.reset();
-    improvementSet(g, currentClique, alreadyUsed, currentImprovementSet);
+    std::sort(sortedPenalty, sortedPenalty+g->n, sorter);
+    is = improvementSet(g, currentClique, alreadyUsed,
+			sortedPenalty, 0);
+    // std::cout << numSteps << std::endl;
 }
 
 
-std::vector<int> sync(int n, std::vector<DLS>& dls) {
-    std::vector<int> global_penalty(n, 0);
-    std::vector<int> bestSizes(MAX_THREADS);
+void sync(int n, DLS *dls) {
+    int *globalPenalty = new int[n];
+    int *bestSizes = new int[MAX_THREADS];
     int totalSum = 0 ;
     for (int i=0; i<MAX_THREADS; i++)
 	bestSizes[i] = dls[i].st->bestClique.count(), totalSum += bestSizes[i];
     for (int i=0; i<n; i++) {
     	for (int j=0; j<MAX_THREADS; j++)
-    	    global_penalty[i] += bestSizes[j]*dls[j].st->penalty[i];
-	global_penalty[i]  /= totalSum;
+    	    globalPenalty[i] += bestSizes[j]*dls[j].st->penalty[i];
+	globalPenalty[i]  /= totalSum;
     }
-    return global_penalty;
+    for (int i=0; i<MAX_THREADS; i++) {
+	dls[i].st->numSteps = 0;
+	for (int j=0; j<n; j++)
+	    dls[i].st->penalty[j] = globalPenalty[j];
+    }
+    delete[] globalPenalty;
+    delete[] bestSizes;
 }
 
-
+DLS::DLS() {}
 DLS::DLS(state_t *_st) : st(_st) {}
 void DLS::operator()() {
     while (st->numSteps < st->maxSteps) {
@@ -168,9 +197,9 @@ void DLS::operator()() {
 	st->plateau();
 	// std::cout << "Phases" << std::endl;
 	st->phases();
-	// std::cout << "Update" << std::endl;
+	// // std::cout << "Update" << std::endl;
 	st->update();
-	// std::cout << "Restart" << std::endl;
+	// // std::cout << "Restart" << std::endl;
 	st->restart();
 	// std::cout << "Looping" << std::endl;
     }
