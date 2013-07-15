@@ -1,18 +1,18 @@
+#include <fstream>
+#include <sstream>
 #include <vector>
+#include <utility>
 #include <map>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/thread.hpp>
 #include "graph.hpp"
 #include <iostream>
 
-std::map<boost::dynamic_bitset<>, std::vector<int> > memoLevel;
-std::map<boost::dynamic_bitset<>, std::vector<int> > memoImpr;
-
 graph_t::graph_t(int _n, int _m) : n(_n), m(_m) {
     matrix.resize(n);
     degree.resize(n);
     for (int i=0; i<n; i++)
-	matrix[i] = boost::dynamic_bitset<>(n);
+	matrix[i] = set_t(n);
 }
 
 void graph_t::add_edge(int a, int b) {
@@ -26,11 +26,11 @@ bool graph_t::connected(int a, int b) {
     return matrix[a][b];
 }
 
-bool graph_t::connectedAll(int x, boost::dynamic_bitset<>& cc) {
+bool graph_t::connectedAll(int x, set_t& cc) {
     return (matrix[x] & cc) == cc;
 }
 
-// int graph_t::swapWith(boost::dynamic_bitset<> bm, int lo, int hi) {
+// int graph_t::swapWith(set_t bm, int lo, int hi) {
 //     int mid = (lo+hi)/2;
 //     // std::cout << "mid=" << mid << std::endl;
 //     if (bm[mid]) return mid;
@@ -40,74 +40,75 @@ bool graph_t::connectedAll(int x, boost::dynamic_bitset<>& cc) {
 //     	return swapWith(bm, lo, mid-1);
 // }
 
-int graph_t::swapWith(boost::dynamic_bitset<> bm) {
+int graph_t::swapWith(set_t bm) {
     return bm.find_first();
 }
 
-int graph_t::disconnectedOne(int x, boost::dynamic_bitset<>& cc) {
+int graph_t::disconnectedOne(int x, set_t& cc) {
     return swapWith(cc ^ (matrix[x] & cc));
 }
 
-bool graph_t::isDisconnectedFromOne(int x, boost::dynamic_bitset<>& cc, unsigned int bc) {
+bool graph_t::isDisconnectedFromOne(int x, set_t& cc, unsigned int bc) {
     return bc - 1 == (matrix[x] & cc).count();
 }
-void filterLevelSet(std::vector<int> levelSet, boost::dynamic_bitset<> alreadyUsed,
+void filterLevelSet(std::vector<int> levelSet, set_t alreadyUsed,
 		    std::vector<int>& ans) {
     for (unsigned int i=0; i<levelSet.size(); i++)
 	if (!alreadyUsed[levelSet[i]])
 	    ans.push_back(levelSet[i]);
 }
 
-std::vector<int> improvementSet(graph_t *g, boost::dynamic_bitset<>& cc,
-				boost::dynamic_bitset<>& alreadyUsed) {
-    std::vector<int> ans;
-    std::vector<int> m;
-    ans.reserve(g->n);
-    // if (!memoImpr.count(cc)) {
-	m.reserve(g->n);
-	for (int i=0; i<g->n; i++) {
-	    if (!cc[i] && g->connectedAll(i, cc)) {
-		m.push_back(i);
-	    }
+void improvementSet(graph_t *g, set_t& cc,
+		    set_t& alreadyUsed,
+		    std::vector<int>& ans) {
+    ans.clear();
+    for (int i=0; i<g->n; i++) {
+	if (!cc[i] && !alreadyUsed[i] && g->connectedAll(i, cc)) {
+	    ans.push_back(i);
 	}
-    	// memoImpr[cc] = m;
-    // } else {
-    // 	m = memoImpr[cc];
-
-    // }
-    filterLevelSet(m, alreadyUsed, ans);
-    return ans;
+    }
 }
 
-std::vector<int> levelSet(graph_t *g, boost::dynamic_bitset<>& cc,
-			  boost::dynamic_bitset<>& alreadyUsed) {
-    // boost::upgrade_lock<boost::shared_mutex> lock(ml_);
-    std::vector<int> ans;
-    std::vector<int> m;
-    ans.reserve(g->n);
+void levelSet(graph_t *g, set_t& cc, set_t& alreadyUsed,
+	      std::vector<int>& ans) {
+    ans.clear();
     int bc = cc.count();
-    // if (!memoLevel.count(cc)) {
-	m.reserve(g->n);
-	for (int i=0; i<g->n; i++) {
-	    if (!cc[i] && g->isDisconnectedFromOne(i, cc, bc))
-		m.push_back(i);
-	}
-	// boost::upgrade_to_unique_lock<boost::shared_mutex> uniqueLock(lock);
-	// memoLevel[cc] = m;
-    // } else
-    // 	m = memoLevel[cc];
-    filterLevelSet(m, alreadyUsed, ans);
-    return ans;
+    for (int i=0; i<g->n; i++) {
+	if (!cc[i] && !alreadyUsed[i] && g->isDisconnectedFromOne(i, cc, bc))
+	    ans.push_back(i);
+    }
 }
 
-
-std::vector<int> updateImprovementSet(graph_t *g, std::vector<int>& i0, int v,
-				      boost::dynamic_bitset<>& alreadyUsed) {
-    std::vector<int> ans;
-    ans.reserve(i0.size());
+void updateImprovementSet(graph_t *g, std::vector<int>& i0, int v,
+			  set_t& alreadyUsed) {
+    int p=0;
     for (unsigned int i=0; i<i0.size(); i++) {
 	if (g->connected(v, i0[i]) && !alreadyUsed[i0[i]])
-	    ans.push_back(i0[i]);
+	    i0[p++] = i0[i];
     }
-    return ans;
+    i0.resize(p);
+}
+
+graph_t *parse(char *filename) {
+    std::fstream fin(filename);
+    std::string line;
+    graph_t *g;
+    while(std::getline(fin, line))
+	{
+	    //the following line trims white space from the beginning of the string
+	    line.erase(line.begin(), std::find_if(line.begin(), line.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+	    std::istringstream iss(line);
+	    std::string g1, g2;
+	    if(line[0] == 'c') continue;
+	    if (line[0] == 'p') {
+		int n, m;
+		iss >> g1 >> g2 >> n >> m;
+		g = new graph_t(n, m);
+		continue;
+	    }
+	    int a, b;
+	    iss >> g1 >> a >> b;
+	    g->add_edge(a-1, b-1);
+	}
+    return g;
 }

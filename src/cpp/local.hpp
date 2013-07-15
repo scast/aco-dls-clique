@@ -3,10 +3,14 @@
 #include "graph.hpp"
 #include <boost/dynamic_bitset.hpp>
 #include <vector>
+#include <set>
+
+extern std::set<set_t> bests;
+extern int maxSize;
 
 struct state_t {
     // real state
-    boost::dynamic_bitset<> currentClique, bestClique, alreadyUsed;
+    set_t currentClique, bestClique, alreadyUsed;
     std::vector<int> penalty, currentImprovementSet;
     int numSteps, lastAdded, updateCycle;
 
@@ -21,11 +25,18 @@ struct state_t {
     void expand();
     void plateau();
     void updateBest();
-    int select(std::vector<int>& s);
     void phases();
-    void update();
-    void restart();
+    virtual int select(std::vector<int>& s);
+    virtual void update();
+    virtual void restart();
 };
 
-int dls(state_t& initial);
+struct DLS {
+    state_t *st;
+    DLS(state_t *_st);
+    void operator()();
+};
+
+std::vector<int> sync(int n, std::vector<DLS>& dls);
+
 #endif
