@@ -3,11 +3,13 @@
 #include "graph.hpp"
 #include <utility>
 #include <boost/dynamic_bitset.hpp>
+#include <ctime>
 // #include <vector>
 #include <set>
 
 extern std::set<set_t> bests;
 extern int maxSize;
+extern double bestFirst;
 
 
 struct penalty_sorter {
