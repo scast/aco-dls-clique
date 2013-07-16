@@ -17,7 +17,7 @@
 boost::shared_mutex _access;
 std::set<set_t> bests;
 int maxSize;
-
+double bestFirst;
 
 state_t::state_t(graph_t *_g, int _maxSteps, int _penaltyDelay)
     :  numSteps(0), updateCycle(1), g(_g), maxSteps(_maxSteps),
@@ -111,6 +111,7 @@ void state_t::updateBest() {
 		else std::cout << "Invalido" << std::endl;
 		maxSize = cnt;
 		bests.clear();
+		bestFirst = (double)clock()/CLOCKS_PER_SEC;
 	    }
 	    bests.insert(bestClique);
 	}

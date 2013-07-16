@@ -1,6 +1,7 @@
 #include <boost/thread.hpp>
 #include "local.hpp"
 #include "graph.hpp"
+#include <ctime>
 #define MAX_THREADS 8
 
 
@@ -9,6 +10,7 @@ int main(int argc, char *argv[]) {
     graph_t *g = parse(filename);
     boost::thread threads[MAX_THREADS];
     DLS *dls = new DLS[MAX_THREADS];
+    double start = (double)clock()/CLOCKS_PER_SEC;
     std::cout << "Iniciando busqueda" << std::endl;
     for (int i=0; i<MAX_THREADS; i++)
 	dls[i] = DLS(new state_t(g, atoi(steps), atoi(spd)));
@@ -22,5 +24,6 @@ int main(int argc, char *argv[]) {
     std::cout << "Listo" << std::endl;
     std::cout << "Maximo tamano -> " << maxSize << std::endl;
     std::cout << "Diferentes -> " << bests.size() << std::endl;
+    std::cout << "Primer mejor en " << bestFirst - start << std::endl;
     return 0;
 }
