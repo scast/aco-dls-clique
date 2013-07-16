@@ -58,13 +58,24 @@ bool graph_t::isDisconnectedFromOne(int x, set_t& cc, unsigned int bc) {
 }
 
 std::pair<int, int> improvementSet(graph_t *g, set_t& cc, set_t& alreadyUsed,
-			      int *sortedPenalty, int pos) {
+				   int *sortedPenalty, int pos) {
     for (int i=pos; i<g->n; i++)
 	if (!cc[sortedPenalty[i]] &&
 	    !alreadyUsed[sortedPenalty[i]] &&
 	    g->connectedAll(sortedPenalty[i], cc))
 	    return std::make_pair(sortedPenalty[i], i+1);
     return std::make_pair(-1, g->n);
+}
+
+int improvementSet(graph_t *g, set_t& cc, set_t& alreadyUsed, int *sp,
+		   int *ans) {
+    int sz = 0;
+    for (int i=0; i<g->n; i++)
+	if (!cc[sp[i]] &&
+	    !alreadyUsed[sp[i]] &&
+	    g->connectedAll(sp[i], cc))
+	    ans[sz++] = sp[i];
+    return sz;
 }
 
 int levelSet(graph_t *g, set_t& cc, set_t& alreadyUsed, int *sortedPenalty) {
