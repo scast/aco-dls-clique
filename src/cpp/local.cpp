@@ -5,81 +5,135 @@
 #include <vector>
 #include <cstdlib>
 #include <algorithm>
+#include <map>
+#include <set>
 #include <ctime>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/thread.hpp>
 #include "local.hpp"
 #include "graph.hpp"
+#define MAX_THREADS 8
 
-std::vector<int> global_penalty;
-boost::mutex m_;
+boost::shared_mutex _access;
+std::set<set_t> bests;
+int maxSize;
+
 
 state_t::state_t(graph_t *_g, int _maxSteps, int _penaltyDelay)
     :  numSteps(0), updateCycle(1), g(_g), maxSteps(_maxSteps),
        penaltyDelay(_penaltyDelay) {
-    boost::lock_guard<boost::mutex> guard(m_);
+
+    // Select a random node to start the search.
     srand (time(NULL));
     int initialVertex = rand() % g->n;
-    currentClique = boost::dynamic_bitset<>(g->n);
+
+    // Store the current clique.
+    currentClique = set_t(g->n);
     currentClique[initialVertex] = 1;
     bestClique = currentClique;
-    alreadyUsed = boost::dynamic_bitset<>(g->n);
-    penalty.assign(global_penalty.begin(), global_penalty.end());
-    currentImprovementSet = improvementSet(g, currentClique, alreadyUsed);
     lastAdded = initialVertex;
+
+    // Mark which nodes are already tried on.
+    alreadyUsed = set_t(g->n);
+
+    // Initialize penalty, improvementSet, levelSet.
+    penalty = new int[g->n];
+    for (int i=0; i<g->n; i++)
+	penalty[i] = 0;
+    sorter.penalties = penalty;
+    sortedPenalty = new int[g->n];
+    for (int i=0; i<g->n; i++)
+	sortedPenalty[i] = i;
+    // currentImprovementSet = new int[g->n];
+    // currentLevelSet = new int[g->n];
+    is = improvementSet(g, currentClique, alreadyUsed, sortedPenalty, 0);
+    ls = -1;
+    // isSize = improvementSet(g, currentClique, alreadyUsed,
+    // 			    currentImprovementSet);
+    // lsSize = 0;
 }
 
-int state_t::select(std::vector<int>& s) {
+state_t::~state_t() {
+    delete[] penalty;
+    // delete[] currentLevelSet;
+    // delete[] currentImprovementSet;
+}
+
+int state_t::select(int *s, int n) {
     int minval = 0x3f3f3f3f, minpos;
-    for (unsigned int i=0; i<s.size(); i++) {
-	if (penalty[s[i]] < minval) minval = penalty[s[i]], minpos = s[i];
-    }
+    for (int i=0; i<n; i++)
+	if (penalty[s[i]] < minval)
+	    minval = penalty[s[i]], minpos = s[i];
     return minpos;
 }
 
 void state_t::expand() {
     int v;
-    while (!currentImprovementSet.empty()) {
-	v = select(currentImprovementSet);
+    while (is.first != -1) {
+	// v = select(currentImprovementSet, isSize);
+	v = is.first;
 	currentClique[v] = 1;
 	alreadyUsed[v] = 1;
 	lastAdded = v;
 	numSteps++;
-	currentImprovementSet = updateImprovementSet(g, currentImprovementSet, v,
-						     alreadyUsed);
+	// std::cout << "updateimp" << std::endl;
+	is = improvementSet(g, currentClique, alreadyUsed,
+			    sortedPenalty, is.second);
+	// is = updateImprovementSet(g, currentImprovementSet, isSize,
+	// 			      v, alreadyUsed);
+	// std::cout << "pegado" << std::endl;
     }
     updateBest();
 }
 
 void state_t::plateau() {
-    boost::dynamic_bitset<> currentCopy = currentClique;
-    std::vector<int> ls = levelSet(g, currentClique, alreadyUsed);
-    int remove, v;
-    while ((currentClique & currentCopy).count() != 0 && !ls.empty()){
-	v = select(ls);
-	remove = g->disconnectedOne(v, currentClique);
-	// std::cout << "Seleccione -> " << v << std::endl;
-	// std::cout << "Cambiando por -> " << remove << std::endl;
-	currentClique[v] = 1;
+    set_t currentCopy = currentClique;
+    int remove;
+    ls = levelSet(g, currentClique, alreadyUsed, sortedPenalty);
+    while (ls != -1 && (currentClique & currentCopy).count() != 0) {
+	// v = select(currentLevelSet, lsSize);
+	remove = g->disconnectedOne(ls, currentClique);
+	currentClique[ls] = 1;
 	currentClique[remove] = 0;
-	alreadyUsed[v] = 1;
+	alreadyUsed[ls] = 1;
 	numSteps++;
-	lastAdded = v;
-	currentImprovementSet = improvementSet(g, currentClique, alreadyUsed);
-	if (!currentImprovementSet.empty()) break;
-	ls = levelSet(g, currentClique, alreadyUsed);
+	lastAdded = ls;
+	is = improvementSet(g, currentClique, alreadyUsed,
+			    sortedPenalty, 0);
+	// isSize = improvementSet(g, currentClique, alreadyUsed,
+	// 			currentImprovementSet);
+	if (is.first != -1) break;
+	ls = levelSet(g, currentClique, alreadyUsed, sortedPenalty);
     }
 }
 
 void state_t::updateBest() {
-    if (bestClique.count() < currentClique.count()) {
+    boost::upgrade_lock<boost::shared_mutex> lock(_access);
+    int cnt = currentClique.count();
+    if (bestClique.count() < cnt) {
 	bestClique = currentClique;
-	std::cout << "Consegui un clique de tamano " << bestClique.count() << std::endl;
+	boost::upgrade_to_unique_lock<boost::shared_mutex> uniqueLock(lock);
+	if (maxSize <= cnt) {
+	    if (maxSize < cnt) {
+		std::cout << "Consegui un clique de tamano " << cnt << std::endl;
+		bool ok=true;
+		for (int i=0; i<g->n&&ok; i++)
+		    if (currentClique[i])
+			for (int j=i+1; j<g->n&&ok; j++)
+			    if (currentClique[j])
+				ok = g->connected(i, j);
+		if (ok) std::cout << "Valido" << std::endl;
+		else std::cout << "Invalido" << std::endl;
+		maxSize = cnt;
+		bests.clear();
+	    }
+	    bests.insert(bestClique);
+	}
     }
 }
 
 void state_t::phases() {
-    while (!currentImprovementSet.empty()) {
+    while (is.first != -1) {
 	expand();
 	plateau();
     }
@@ -88,62 +142,65 @@ void state_t::phases() {
 void state_t::update() {
     int dec = (updateCycle % penaltyDelay == 0) ? -1 : 0;
     for (int i=0; i<g->n; i++)
-	penalty[i] = std::min(0, penalty[i] + dec + (currentClique[i] ? 1 : 0));
+    	penalty[i] = std::max(0, penalty[i] + dec + (currentClique[i] ? 1 : 0));
+    updateCycle++;
 }
 
 void state_t::restart() {
-    int v = rand() % g->n;
-    currentClique.reset();
-    currentClique[v] = 1;
-    alreadyUsed.reset();
-    currentImprovementSet = improvementSet(g, currentClique, alreadyUsed);
-    //    std::cout << numSteps << std::endl; // "Reiniciando en " << v << std::endl;
-}
-
-// struct DLS {
-//     state_t st;
-//     DLS(graph *g, int steps, int pd) : st(g, steps, pd) {}
-//     void operator()() {
-// 	// while (st->num)
-//     }
-// };
-
-int dls(state_t& st) {
-    while (st.numSteps < st.maxSteps) {
-	// std::cout << "Paso -> " << st.numSteps << std::endl;
-	st.expand();
-	st.plateau();
-	st.phases();
-	st.update();
-	st.restart();
+    int v;
+    if (penaltyDelay > 1) {
+	v = lastAdded;
+	currentClique.reset();
+	currentClique[v] = 1;
+    } else {
+	v = rand() % g->n;
+	currentClique[v] = 1;
+	for (int i=0; i<g->n; i++)
+	    if (i != v && currentClique[i] && !g->connected(i, v))
+		currentClique[i] = 0;
     }
-    return st.bestClique.count();
+    alreadyUsed.reset();
+    std::sort(sortedPenalty, sortedPenalty+g->n, sorter);
+    is = improvementSet(g, currentClique, alreadyUsed,
+			sortedPenalty, 0);
+    // std::cout << numSteps << std::endl;
 }
 
-int main(int argc, char *argv[]) {
-    char *filename = argv[1], *spd=argv[2], *steps=argv[3];
-    std::fstream fin(filename);
-    std::string line;
-    graph_t *g;
-    while(std::getline(fin, line))
-	{
-	    //the following line trims white space from the beginning of the string
-	    line.erase(line.begin(), std::find_if(line.begin(), line.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-	    std::istringstream iss(line);
-	    std::string g1, g2;
-	    if(line[0] == 'c') continue;
-	    if (line[0] == 'p') {
-		int n, m;
-		iss >> g1 >> g2 >> n >> m;
-		g = new graph_t(n, m);
-		global_penalty.assign(g->n, 0);
-		continue;
-	    }
-	    int a, b;
-	    iss >> g1 >> a >> b;
-	    g->add_edge(a-1, b-1);
-	}
-    state_t st(g, atoi(steps), atoi(spd));
-    dls(st);
-    return 0;
+
+void sync(int n, DLS *dls) {
+    int *globalPenalty = new int[n];
+    int *bestSizes = new int[MAX_THREADS];
+    int totalSum = 0 ;
+    for (int i=0; i<MAX_THREADS; i++)
+	bestSizes[i] = dls[i].st->bestClique.count(), totalSum += bestSizes[i];
+    for (int i=0; i<n; i++) {
+    	for (int j=0; j<MAX_THREADS; j++)
+    	    globalPenalty[i] += bestSizes[j]*dls[j].st->penalty[i];
+	globalPenalty[i]  /= totalSum;
+    }
+    for (int i=0; i<MAX_THREADS; i++) {
+	dls[i].st->numSteps = 0;
+	for (int j=0; j<n; j++)
+	    dls[i].st->penalty[j] = globalPenalty[j];
+    }
+    delete[] globalPenalty;
+    delete[] bestSizes;
+}
+
+DLS::DLS() {}
+DLS::DLS(state_t *_st) : st(_st) {}
+void DLS::operator()() {
+    while (st->numSteps < st->maxSteps) {
+	// std::cout << "Expand" << std::endl;
+	st->expand();
+	// std::cout << "Plateau" << std::endl;
+	st->plateau();
+	// std::cout << "Phases" << std::endl;
+	st->phases();
+	// // std::cout << "Update" << std::endl;
+	st->update();
+	// // std::cout << "Restart" << std::endl;
+	st->restart();
+	// std::cout << "Looping" << std::endl;
+    }
 }

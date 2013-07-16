@@ -185,9 +185,10 @@ updatePenalties = do
     return ((DF.foldl' (go cc dec) penalties
              [0..(nodeCount (graph settings))-1]))
   put st {updateCycle = (updateCycle st) + 1}
+  -- liftIO $ putStrLn (show (numSteps st))
   where go cc dec penaltyMap node = DM.adjustWithKey (modifyPenalty cc dec)
                                     node penaltyMap
-        modifyPenalty cc dec key val = (min 0 ((fst val) + dec
+        modifyPenalty cc dec key val = (max 0 ((fst val) + dec
                                                + (if cc `testBit` key then 1 else 0)), snd val)
 
 -- | Restart the search randomly.

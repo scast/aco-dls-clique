@@ -5,4 +5,4 @@ main:
 	ghc --make main.hs -O3 -rtsopts -fforce-recomp -threaded
 
 clean:
-	rm -rf *.o *.hi local
+	rm -rf *.o *.hi local main

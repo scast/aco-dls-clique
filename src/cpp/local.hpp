@@ -1,29 +1,58 @@
 #ifndef LOCAL_H
 #define LOCAL_H
 #include "graph.hpp"
+#include <utility>
 #include <boost/dynamic_bitset.hpp>
-#include <vector>
+// #include <vector>
+#include <set>
+
+extern std::set<set_t> bests;
+extern int maxSize;
+
+
+struct penalty_sorter {
+    int *penalties;
+
+    penalty_sorter() {};
+    bool operator() (int i, int j) {
+	return (penalties[i]<penalties[j]);
+    }
+};
 
 struct state_t {
     // real state
-    boost::dynamic_bitset<> currentClique, bestClique, alreadyUsed;
-    std::vector<int> penalty, currentImprovementSet;
+    set_t currentClique, bestClique, alreadyUsed;
+    int *penalty; // , *currentLevelSet;
     int numSteps, lastAdded, updateCycle;
+    std::pair<int, int> is;
+    int ls;
+    int *sortedPenalty;
+    penalty_sorter sorter;
 
     // settings
     graph_t *g;
     int maxSteps, penaltyDelay;
 
-    state_t(graph_t *g, int maxSteps, int penaltyDelay);
 
+    // state_t(state_t *st);
+    state_t(graph_t *g, int maxSteps, int penaltyDelay);
+    ~state_t();
     void expand();
     void plateau();
     void updateBest();
-    int select(std::vector<int>& s);
     void phases();
-    void update();
-    void restart();
+    virtual int select(int *s, int n);
+    virtual void update();
+    virtual void restart();
 };
 
-int dls(state_t& initial);
+struct DLS {
+    state_t *st;
+    DLS();
+    DLS(state_t *_st);
+    void operator()();
+};
+
+void sync(int n, DLS *dls);
+
 #endif

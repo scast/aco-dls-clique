@@ -54,7 +54,9 @@ main = do
           putStrLn ("Se consiguio un clique de tamano " ++(show (popCount clique)))
           putStrLn $ show (valid graph clique)
           if popCount clique >= (read wanted)
-            then exitSuccess
+            then do
+                    putStrLn (show $ setToList (nodeCount graph) clique)
+                    exitSuccess
             else return ()
         putStrLn "Muerete que chao."
     Left e -> error "Nope."
