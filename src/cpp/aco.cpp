@@ -101,12 +101,13 @@ void DynamicAntClique::update() {
 	pheromones[i] = std::max(tauMin, pheromones[i]);
 	pheromones[i] = std::min(tauMax, pheromones[i]);
     }
+
 }
 
 void DynamicAntClique::operator()() {
     boost::thread threads[antNumber];
     for (int c=0; c<maxSteps; c++) {
-	std::cout << c << std::endl;
+	//	std::cout << c << std::endl;
     	for (int i=0; i<antNumber; i++)
     	    threads[i] = boost::thread(dls[i]);
     	for (int i=0; i<antNumber; i++)
