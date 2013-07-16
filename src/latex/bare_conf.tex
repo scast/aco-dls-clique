@@ -726,6 +726,16 @@ vértices.
 \section{Búsqueda Dinámica Local}
 \label{sec:dls}
 
+Búsqueda Local Dinámica (\emph{Dynamic Local Search} o \emph{DLS}) es una metaheurística presentada por [referencia], basada en la combinación de dos fases: una expansión iterativa y una búsqueda \emph{plateau}.
+
+Ambos procedimientos usan un mecanísmo greedy para mejorar o alterar respectivamente, las soluciones intermedias, haciendo uso una tabla de penalización como heurística de selección de vértices. Esta tabla provee una diversificación adicional al proceso de búsqueda de soluciones; los vértices más usados en soluciones intermedias tendrán una mayor penalización, mientras que la selección de vértices premia a aquellos con menor valor en dicha tabla.
+
+Una vez inicializada la tabla de penalizaciones en $0$ para todos los vértices, \emph{DLS} comienza el proceso de búsqueda con un clique trivial: un vértice elegido aleatoriamente. Luego, comienza un proceso iterativo que alterna la expansión de la solución y la búsqueda \emph{plateau}.
+
+El algoritmo de intensificación, o expansión iterativa, se basa en un método de construcción greedy sobre un clique inicial $C_0$, donde en cada iteración $k$ se construye un nuevo clique $C_k = C_{k-1} \cup \lbrace v \rbrace$ siendo $v$ un vértice que se encuentra conectado a todos los vértices en $C_{k-1}$; este conjunto de vértices se conoce como $N_I(C_{k-1})$. La fase de intensificación termina cuando $N_I(C_{k-1}) = \emptyset$.
+
+Una vez $N_I(C_i) = \emptyset$, la búsqueda \emph{plateau} consiste en el intercambio de un vértice $v \in C_i$ por un vértice $v' \in N_L(C_i)$
+
 \section{Optimización por Colonia de Hormigas}
 \label{sec:aco}
 
