@@ -727,10 +727,8 @@ algoritmos que combinan métodos de intensificación con remoción de
 vértices.
 
 \section{Búsqueda Dinámica Local}
-\label{sec:dls}
-
-Búsqueda Local Dinámica (\emph{Dynamic Local Search} o \emph{DLS}) es
-una metaheurística presentada por [referencia], basada en la
+\label{sec:dls}Búsqueda Local Dinámica (\emph{Dynamic Local Search} o
+\emph{DLS}) es una metaheurística presentada por [FIXME], basada en la
 combinación de dos fases: una expansión iterativa y una búsqueda
 \emph{plateau}.
 
@@ -746,19 +744,37 @@ Una vez inicializada la tabla de penalizaciones en $0$ para todos los
 vértices, \emph{DLS} comienza el proceso de búsqueda con un clique
 trivial: un vértice elegido aleatoriamente. Luego, comienza un proceso
 iterativo que alterna la expansión de la solución y la búsqueda
-\emph{plateau}.
+\emph{plateau}. Una descripción detallada del algoritmo se encuentra
+en [FIXME].
 
 El algoritmo de intensificación, o expansión iterativa, se basa en un
 método de construcción greedy sobre un clique inicial $C_0$, donde en
 cada iteración $k$ se construye un nuevo clique $C_k = C_{k-1} \cup
 \lbrace v \rbrace$ siendo $v$ un vértice que se encuentra conectado a
-todos los vértices en $C_{k-1}$; este conjunto de vértices se conoce
-como $N_I(C_{k-1})$. La fase de intensificación termina cuando
-$N_I(C_{k-1}) = \emptyset$.
+todos los vértices en $C_{k-1}$; este conjunto de vértices se conoce 
+como $N_I(C_{k-1})$, o \emph{improving neighbour set}. La fase de
+intensificación termina cuando $N_I(C_{k-1}) = \emptyset$, es decir,
+cuando $C_{k-1}$ es un \emph{clique maximal}. Ver [FIXME].
 
-Una vez $N_I(C_i) = \emptyset$, la búsqueda \emph{plateau} consiste en
-el intercambio de un vértice $v \in C_i$ por un vértice $v' \in
-N_L(C_i)$
+Una vez se tiene un \emph{clique maximal} $C_0$, comienza la búsqueda
+\emph{plateau}, que consiste (en cada iteración k) en el intercambio
+de un vértice $v \in C_k$ por un vértice $v' \in N_L(C_k)$; donde
+$N_L(C_k)$ es el conjunto de vértices que están conectados a todos
+los vértices en $C_k$ excepto uno (en este caso de $v'$ no está
+conectado con $v$). Este proceso se repite mientras $N_I(C_k) =
+\emptyset$, $N_L(C_k) \neq \emptyset$ y mientras $C_k$ contenga
+vértices del \emph{clique maximal} $C_0$. Ver [FIXME].
+
+Basados en el uso de la tabla de penalizaciones, realizamos una
+modificación sobre \emph{DLS} (a la que llamamos \emph{Collaborative
+DLS}) en la que se mantienen varios hilos de ejecución de \emph{DLS}
+de forma paralela, y cada cierto número de iteraciones (un parámetro
+del algoritmo) se obtiene un promedio ponderado de las tablas de
+penalización de cada ejecución, de acuerdo al tamaño del clique máximo
+encontrado por cada hilo; es decir, los diferentes hilos de \emph{DLS}
+comparten información sobre los cliques visitados, para disminuir la
+probabilidad de repetirlos. El algoritmo detallado se encuentra en
+[FIXME] y [FIXME].
 
 \begin{scriptsize}
 \LinesNumbered
