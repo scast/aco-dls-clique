@@ -751,7 +751,7 @@ El algoritmo de intensificación, o expansión iterativa, se basa en un
 método de construcción greedy sobre un clique inicial $C_0$, donde en
 cada iteración $k$ se construye un nuevo clique $C_k = C_{k-1} \cup
 \lbrace v \rbrace$ siendo $v$ un vértice que se encuentra conectado a
-todos los vértices en $C_{k-1}$; este conjunto de vértices se conoce 
+todos los vértices en $C_{k-1}$; este conjunto de vértices se conoce
 como $N_I(C_{k-1})$, o \emph{improving neighbour set}. La fase de
 intensificación termina cuando $N_I(C_{k-1}) = \emptyset$, es decir,
 cuando $C_{k-1}$ es un \emph{clique maximal}. Ver [FIXME].
@@ -1166,6 +1166,57 @@ de estos parámetros afecta la búsqueda:
 
 \section{Experimentos y resultados}
 \label{sec:experiments}
+
+Todos los algoritmos que se han descrito se han implementado en C++
+utilizando la librería \texttt{boost}. Fueron compilados utilizando el
+compilador \texttt{g++} utilizando el parámetro de optimización
+\texttt{-O3}. Todos los experimentos corrieron sobre una máquina con
+un Intel Core i7 2.1ghz que cuenta con 8 núcleos y 4 gigabytes de
+memoria RAM. Los experimentos se realizaron sobre Ubuntu Linux versión
+12.04.
+
+Para comparación utilizaremos los resultados de DLS descritos por
+\cite{dynamicl}. Asimismo, utilizaremos los resultados de
+\texttt{Ant-Clique+Vertex-AC} descritos por \cite{aco2}.
+
+\subsection{Instancias de prueba}
+\label{sec:aco}
+
+Para evaluar el \emph{performance} se utilizaron las instancias de
+grafos del Segundo Reto DIMACS. Estas instancias resultan el método de
+prueba \emph{de facto} para algoritmos que consiguen cliques
+máximos. Son 80 instancias generadas de problemas en teorías de
+códigos, diagnóstico de fallas, conjetura de Keller y el problema de
+la tripleta de Steiner en conjunto con grafos aleatoriamente
+generados.  Estos problemas varían de 50 vértices y 1000 lados hasta
+3300 vértices y más de 5 millones de lados.
+
+La descripción de las instancias es como sigue:
+
+\begin{itemize}
+\item \texttt{C$n$.$p$} y \texttt{DSJC$n$.$p$} son grafos
+  aleatoriamente generados con $n$ vértices y una densidad de $0.p$.
+
+\item \texttt{MANN\_a} son formulaciones basadas en clique de la
+  formulación como \emph{set covering} del problema de la tripleta de
+  Steiner. Estos grafos contiene grandes cliques escondidos en una
+  población de pequeños cliques conectados.
+
+\item \texttt{gen$n$\_p0.$p$\_$m$} son grafos que tienen $n$ vértices,
+  densidad $0.p$ y cliques escondidos de tamaño conocido de $m$.
+
+\item \texttt{hamming$n$\_$m$} son grafos que asocian cada vértice con
+  diferentes palabras de $n$-bits. En estos grafos, un lado existe
+  entre dos vértices si y solo si si las palabras tienen una distancia
+  de Hamming de al menos $m$.
+\item \texttt{Keller} son grafos basados en el particionamiento del
+  espacio utilizado hipercubos según la conjetura de Keller.
+\item \texttt{p\_hat$n$\_$m$} son grafos aleatorios con $n$ vértices,
+  densidad entre 0.244 y 0.506.
+
+\end{itemize}
+
+
 
 \section{Conclusiones y futuras direcciones}
 \label{sec:conclusions}
