@@ -66,6 +66,7 @@
 \documentclass[conference]{IEEEtran}
 \usepackage[utf8]{inputenc}
 \usepackage{amsthm}
+\usepackage[ruled, vlined]{algorithm2e}
 \newtheorem{mydef}{Definición}
 
 \usepackage[T1]{fontenc}
@@ -699,8 +700,9 @@ máximo.
 \begin{mydef}
   Dado un grafo $G = (V,E)$ arbitrario y un clique $C$ en este grafo,
   llamamos a su \textbf{conjunto de mejoramiento} al conjunto de $I
-  \subseteq V$ tal que para $x \in I$ se tiene que $x$ está conectado a
-  todos los elementos de $C$ en $G$.
+  \subseteq V$ tal que para $x \in I$ se tiene que $x$ está conectado
+  a todos los elementos de $C$ en $G$. A este conjunto lo denotamos
+  $N_I(C)$.
 \end{mydef}
 
 
@@ -712,9 +714,10 @@ mejoramiento vacío.
   Dado un grafo $G = (V,E)$ arbitrario y un clique $C$ en este grafo,
   llamamos a su \textbf{conjunto de nivel} al conjunto $L \subseteq V$
   tal que para $x \in L$ se tiene que $x$ esta conectado a todos los
-  elementos de $C$ en $G$ menos \emph{exactamente} uno. Para cada
-  elemento $x \in L$, el elemento $y \in C$ tal que no existe $(x,y)
-  \in E$ se le conoce como el \textbf{dual} de $x$.
+  elementos de $C$ en $G$ menos \emph{exactamente} uno. Este conjunto
+  lo denotamos $N_L(C)$. Para cada elemento $x \in L$, el elemento $y
+  \in C$ tal que no existe $(x,y) \in E$ se le conoce como el
+  \textbf{dual} de $x$.
 \end{mydef}
 
 El conjunto de nivel de un clique $C$ en un grafo $G$ permite realizar
@@ -726,8 +729,274 @@ vértices.
 \section{Búsqueda Dinámica Local}
 \label{sec:dls}
 
+\begin{scriptsize}
+\LinesNumbered
+\begin{algoritmo}[htp]
+\label{dls:algo}
+
+ \caption{Dynamic Local Search}
+ \KwIn{ Un grafo $G$, parámetros $dlsPasos$, $dlsPD$}
+  \KwOut{ Un clique máximal $C$ resultado de la búsqueda }
+  \SetKwFunction{Select}{Select}
+  \DontPrintSemicolon
+  \Begin{
+    $numSteps \leftarrow 0$;
+
+    $C \leftarrow \{random(V)\}$;
+
+    Inicializar la tabla de penalización en 0 para cada vértice en
+    $G$;
+
+    \While{$numSteps < dlsPasos$}{
+      \texttt{expandir}($G$, $C$);
+
+      $C' \leftarrow C$;
+
+      \texttt{plateau}($G$, $C$, $C'$);
+
+      \While{$N_I(C) \neq \emptyset$}{
+
+        \texttt{expandir}($G$, $C$);
+
+        $C' \leftarrow C$;
+
+        \texttt{plateau}($G$, $C$, $C'$);
+      }
+
+      Actualizar las penalizaciones con respecto al parámetro $dlsPD$;
+
+      \If{$dlsPD > 1$}{
+        Sea $v$ el último vértice que fue agregado a $C$.
+
+        $C \leftarrow \{v\};$
+
+      } \Else {
+        $v \leftarrow random(V)$;
+
+        $C \leftarrow C \cup \{v\}$
+
+        Remover todos los vértices en $C$ que no están conectados a $v$
+        en $G$.
+      }
+    }
+    Sea $C_{mejor}$ el mejor clique conseguido en la búsqueda.
+
+    \KwRet{$C_{mejor}$}
+ }
+\end{algoritmo}
+\end{scriptsize}
+
+
+\begin{scriptsize}
+\LinesNumbered
+\begin{algoritmo}[htp]
+\label{dls:algo}
+
+ \caption{\texttt{expandir}}
+ \KwIn{ Un grafo $G$, un clique $C$}
+  \KwOut{ Se expande el clique original $C$ lo más posible. }
+  \SetKwFunction{Select}{Select}
+  \DontPrintSemicolon
+  \Begin{
+
+    \While{$N_I(C) \neq \emptyset$}{
+
+      Seleccionar $v \in N_I(C)$ con mínimo costo en la tabla de
+      penalización;
+
+      $C \leftarrow C \cup \{v\};$
+
+      $numSteps \leftarrow numSteps + 1$;
+    }
+ }
+\end{algoritmo}
+\end{scriptsize}
+
+\begin{scriptsize}
+\LinesNumbered
+\begin{algoritmo}[htp]
+\label{dls:algo}
+ \caption{\texttt{plateau}}
+ \KwIn{ Un grafo $G$, un clique $C$, una copia del clique $C$ llamada $C'$}
+  \KwOut{ Se realizan intercambios en $C$ que permitan continuar con
+    la búsqueda. }
+  \SetKwFunction{Select}{Select}
+  \DontPrintSemicolon
+  \Begin{
+
+    \While{$N_I(C) = \emptyset$ \textbf{and} $N_L(C) \neq \emptyset$
+      \textbf{and} $C \cap C' \neq \emptyset$}{
+
+      Seleccionar $v \in N_L(C)$ con mínimo costo en la tabla de
+      penalización;
+
+      $C \leftarrow C \cup \{v\};$
+
+      Remover el vértice $u$ que es el dual de $v$ en $C$.
+
+      $numSteps \leftarrow numSteps + 1$;
+    }
+ }
+\end{algoritmo}
+\end{scriptsize}
+
+
+\begin{scriptsize}
+\LinesNumbered
+\begin{algoritmo}[htp]
+\label{cdls:algo}
+
+ \caption{Collaborative Dynamic Local Search}
+ \KwIn{ Un grafo $G$, parámetros $dlsPasos$, $dlsPD$, $threads$, $cons$}
+  \KwOut{ Un clique máximal $C$ resultado de la búsqueda }
+  \SetKwFunction{Select}{Select}
+  \DontPrintSemicolon
+  \Begin{
+   \For{$i\leftarrow 1$ \KwTo $threads$}{
+     Inicializar estructura de \texttt{Collaborative-DLS} utilizando
+     los parámetros de búsqueda $dlsPasos$, $dlsPD$;
+
+     Guardar en $DLS_i$;
+   }
+
+   \For{$c \leftarrow 1$ \KwTo $cons$}{
+     \For{$i\leftarrow 1$ \KwTo $threads$}{
+       Iniciar hilo de búsqueda paralelo para $DLS_i$;
+     }
+
+     Esperar que todas los hilos terminen (realicen $dlsPasos$);
+
+     \texttt{sincronizar}($G$, $DLS$);
+   }
+ }
+\end{algoritmo}
+\end{scriptsize}
+
+
+\begin{scriptsize}
+\LinesNumbered
+\begin{algoritmo}[htp]
+\label{cdls:sync}
+
+ \caption{\texttt{sincronizar}}
+ \KwIn{ Un grafo $G = (V,E)$, un arreglo $DLS$ que representa el
+   estado de búsqueda }
+  \KwOut{ Un clique máximal $C$ resultado de la búsqueda }
+  \SetKwFunction{Select}{Select}
+  \DontPrintSemicolon
+  \Begin{
+    Inicializar un arreglo $globalPenalty[|V|]$.
+
+    Sea $bestClique_i$ el tamaño del mejor clique conseguido hasta ahora por la
+    búsqueda en $DLS_i$ y $penalty_i$ un arreglo que representa la
+    tabla de penalizaciones del estado de búsqueda de $DLS_i$
+
+   \For{$i\leftarrow 1$ \KwTo $|V|$}{
+     $\Delta \leftarrow \frac{\sum_{j=0}^{threads-1} bestClique_j
+       penalty_{ji}}{\sum_{j=0}^{threads-1} bestClique_j};$
+
+     $globalPenalty_i \leftarrow \Delta$
+   }
+
+   \For{$i\leftarrow 1$ \KwTo $threads$}{
+     Actualizar cada posición de $penalty_i$ por $globalPenalty_i$
+   }
+   }
+
+\end{algoritmo}
+\end{scriptsize}
+
+
 \section{Optimización por Colonia de Hormigas}
 \label{sec:aco}
+
+La idea básica de la optimización por colonia de hormigas (ACO)
+consiste en modelar el problema como una búsqueda de un camino de
+costo mínimo en un grafo, y utilizar hormigas artificiales las cuales
+buscan sobre este grafo. El comportamiento de estas hormigas
+artificiales está basado en el comportamiento de las hormigas en la
+naturaleza: las hormigas artificiales colocan feromonas sobre el
+camino que recorren en el grafo y eligen su camino en función
+probabilista a las feromonas anteriormente colocadas sobre el grafo
+por otras hormigas. Claramente, este comportamiento sirve para dar
+información a la búsqueda permitiendo aprender caminos que resultan
+ser atractivos para recorrer, los cuales arrojan buenos resultados.
+
+En \cite{aco1, aco2} se ha hecho un amplio análisis del funcionamiento
+de ACO en la búsqueda del clique máximo. En base a este estudio, en
+particular, a la heurística de actualización de feromonas
+\texttt{Vertex-AC}, hemos modificado el algoritmo \texttt{Ant-Clique}
+para permitir búsquedas en paralelo utilizando DLS. Este algoritmo lo
+llamamos \texttt{Dynamic Ant-Clique} y su descripción se encuentre en
+el algoritmo [FIXME].
+
+\begin{scriptsize}
+\LinesNumbered
+\begin{algoritmo}[htp]
+\label{aco:algo}
+
+ \caption{Dynamic Ant-Clique}
+ \KwIn{ Un grafo $G$, parámetros $\tau_{min}$, $\tau_{max}$, $\rho$,
+   $\alpha$, $ciclos$, $noHormigas$, $dlsPasos$, $dlsPD$}
+  \KwOut{ Un clique máximal $C$ resultado de la búsqueda }
+  \SetKwFunction{Select}{Select}
+  \DontPrintSemicolon
+  \Begin{
+    Inicializar un arreglo $pheromones[noHormigas]$ a $\tau_{max}$;
+
+   \For{$i\leftarrow 1$ \KwTo $noHormigas$}{
+     Inicializar estructura de \texttt{Collaborative-DLS-ANT} utilizando
+     los parámetros de búsqueda $dlsPasos$, $dlsPD$, $\alpha$ y
+     $pheromones$;
+
+     Guardar en $hormiga_i$;
+   }
+
+   \For{$c \leftarrow 1$ \KwTo $ciclos$}{
+     \For{$i\leftarrow 1$ \KwTo $noHormigas$}{
+       Iniciar hilo de búsqueda paralelo para $hormiga_i$;
+     }
+     Esperar que todas las hormigas realicen $dlsPasos$;
+
+     \texttt{sincronizar}($G$, $hormigas$);
+
+     \texttt{actualizar}($G$, $pheromones$, $hormigas$)
+   }
+ }
+\end{algoritmo}
+\end{scriptsize}
+
+\begin{scriptsize}
+\LinesNumbered
+\begin{algoritmo}[htp]
+\label{aco:update}
+
+ \caption{\texttt{actualizar}}
+ \KwIn{ Un grafo $G$, un arreglo $pheromones$, un arreglo de
+   $hormigas$.}
+  \SetKwFunction{Select}{Select}
+  \DontPrintSemicolon
+  \Begin{
+    Actualizar disminuir el valor de todas las feromonas en un factor
+    $\rho$;
+
+    Conseguir el mejor clique (máximo tamaño) $C_{local}$ entre todos los cliques
+    conseguidos por cada hormiga en $hormigas$ en el paso de búsqueda anterior. Si este es mejor que
+    el mejor clique global $C_{mejor}$, se actualiza;
+
+    $\Delta \leftarrow \frac{1}{1+|C_{mejor}|-|C_{local}|}$;
+
+    Se aumenta cada feromona asociada a un vértice de $C_{local}$ en
+    $\Delta$.
+
+    Si alguna feromona es menor a $\tau_{min}$, se cambia por
+    $\tau_{min}$;
+
+    Si alguna feromona es mayor a $\tau_{max}$, se cambia por $\tau_{max}$;
+  }
+\end{algoritmo}
+\end{scriptsize}
+
 
 \section{Experimentos y resultados}
 \label{sec:experiments}
