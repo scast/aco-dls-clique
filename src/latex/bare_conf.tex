@@ -951,15 +951,29 @@ camino que recorren en el grafo y eligen su camino en función
 probabilista a las feromonas anteriormente colocadas sobre el grafo
 por otras hormigas. Claramente, este comportamiento sirve para dar
 información a la búsqueda permitiendo aprender caminos que resultan
-ser atractivos para recorrer, los cuales arrojan buenos resultados.
+ser atractivos para recorrer, los cuales arrojan buenos resultados. En
+general, existen dos instancias posibles para la colocación de las
+feromonas en el grafo:
+
+\begin{enumerate}
+\item Sobre los vértices del grafo, que indican que tan deseable es un
+  vértice del grafo.
+\item Sobre los lados del grafo, que indican que tan deseable es un
+  lado.
+\end{enumerate}
 
 En \cite{aco1, aco2} se ha hecho un amplio análisis del funcionamiento
-de ACO en la búsqueda del clique máximo. En base a este estudio, en
-particular, a la heurística de actualización de feromonas
-\texttt{Vertex-AC}, hemos modificado el algoritmo \texttt{Ant-Clique}
-para permitir búsquedas en paralelo utilizando DLS. Este algoritmo lo
-llamamos \texttt{Dynamic Ant-Clique} y su descripción se encuentre en
-el algoritmo [FIXME].
+de ACO en la búsqueda del clique máximo. En base a este estudio, hemos
+modificado el algoritmo \texttt{Ant-Clique}, en particular, en su
+versión que coloca las feromonas sobre los vértices del grafo
+(conocido como \texttt{Vertex-AC}) para permitir búsquedas en paralelo
+utilizando DLS. Este algoritmo lo llamamos \texttt{Dynamic Ant-Clique}
+y dedicaremos el resto de esta sección a describir su implementación y
+su funcionamiento con el uso del algoritmo descrito en la sección
+anterior  \texttt{Collaborative DLS}.
+
+\subsection{Esquema algorítmico de \texttt{Dynamic Ant-Clique}}
+\label{sec:aco:schema}
 
 \begin{scriptsize}
 \LinesNumbered
@@ -997,6 +1011,54 @@ el algoritmo [FIXME].
 \end{algoritmo}
 \end{scriptsize}
 
+
+En el algoritmo 6 se encuentra el esquema de la implementación
+\texttt{Dynamic Ant-Clique} para resolver el problema del clique
+máximo.  Cada hormiga y su estado es representado dentro del algoritmo
+por una estructura que internamente llamamos
+\texttt{Collaboratie-DLS-ANT}. Esta estructura es la que está
+encargada de realizar la búsqueda de un clique máximal y para esto
+utiliza el algoritmo \texttt{Collaborative-DLS} (con parámetros
+$dlsPasos$ y $dlsPD$) internamente con la diferencia fundamental en el
+criterio de selección de un nodo a expandir (en el proceso \texttt{expandir}). En
+\texttt{Collaborative-DLS}, como se describió arriba, se selecciona $x
+\in N_I(C)$ que minimice el valor dentro de la tabla de penalización;
+en cambio, para los efectos de ACO, preferimos seleccionar el próximo
+vértice a agregar utilizando los criterios establecido por las
+feromonas.
+
+Sea $\tau_i$ la cantidad de feromonas sobre el vértice $i$. Cada nuevo
+vértice a ser agregado al clique actual $C$ es seleccionado del
+conjunto de mejoramiento $N_i(C)$ con probabilidad $p(v)$ con $v \in
+V$. Esta probabilidad esta definida proporcionalmente al valor de las
+feromonas de cada vértice. Esto es,
+
+$$p(v) = \frac{\tau_v^\alpha}{\sum_{u \in N_i(C)} \tau_u^\alpha}$$
+
+donde $\alpha$ es un parámetro que regula el peso que tiene cada
+feromona en la selección de dicho vértice. Es importante notar que el
+criterio de selección de un vértice solo depende de los valores de las
+feromonas. Además, es importante destacar que el criterio de selección
+de vértices a ser intercambiados en el proceso \texttt{plateau} se
+mantiene igual: utiliza la tabla de penalización para seleccionar el
+mínimo vértice a agregar. Esta selección permite combinar las mejores
+características de ambas meta-heurísticas. Por una parte, ACO explota
+en su proceso de búsqueda la selección de vértices que ya conoce que
+arrojan un buen resultado y, por otro lado, DLS hace uso de la tabla
+de penalización para diversificar el espacio de búsqueda. Esta
+selección permite, ciertamente, alcanzar un buen compromiso entre
+intensificación y diversificación de la búsqueda.
+
+De igual forma, es necesario destacar que este proceso de búsqueda de
+cliques maximales utilizando \texttt{Collaborative-DLS} es
+efectivamente paralelo gracias a las bondades del algoritmo descritas
+en la sección anterior. En particular, dentro de \texttt{Dynamic
+  Ant-Clique} se realizan las sincronizaciones de la tabla de
+penalización una vez que cada hormiga termina su búsqueda.
+
+\subsection{Actualización de feromonas}
+\label{sec:aco:feromonas}
+
 \begin{scriptsize}
 \LinesNumbered
 \begin{algoritmo}[htp]
@@ -1028,6 +1090,63 @@ el algoritmo [FIXME].
 \end{algoritmo}
 \end{scriptsize}
 
+
+Una vez que cada cada hormiga termine la ejecución de
+\texttt{Collaborative-DLS} se toma el mejor clique que haya conseguido
+cada hormiga y se inicia el proceso de actualización de
+feromonas. Este proceso se encuentra descrito en el algoritmo 7. En
+primera instancia, se disminuye el valor de todas las feromonas en un
+factor $\rho$ ($0 \leq \rho \leq 1$) para simular
+evaporación. Posteriormente, se aumenta el valor de las feromonas para
+los vértices pertenecientes al mejor clique $C_{local}$ conseguido en
+este paso de búsqueda en
+
+$$\frac{1}{1+|C_{best}|-|C_{local}|} $$
+
+donde $C_{best}$ es el mejor clique conseguido globalmente (incluyendo
+a $C_{local})$.
+
+\subsection{Intensificación y diversificación de la búsqueda}
+\label{sec:aco}
+
+Como todo proceso de búsqueda meta-heurística, es necesario alcanzar
+un balance entre intensificación y diversificación de la
+búsqueda. Como describimos anteriormente, gracias a la hibridación de
+la meta-heurística con DLS, se consigue un buen compromiso entre
+intensificación y diversificación. Sin embargo, es posible controlar
+aún más los procesos de intensificación y diversificación a través de
+los parámetros asociados a cada meta-heurística. En particular,
+$\alpha$, $\rho$, $\tau_{min}$, $\tau_{max}$, $noHormigas$ para ACO y $pd$ para
+DLS. El efecto del parámetro $pd$ fue explicado en la sección
+anterior. En \cite{aco2} se realizó un análisis de como la variación
+de estos parámetros afecta la búsqueda:
+
+\begin{enumerate}
+\item Acotar el rango de valores de cada componente de
+  feromonas$\tau_i$ a $[\tau_{min}, \tau_{max}]$ permite evitar que la
+  búsqueda se estanque prematuramente. En su estudio, ellos
+  encontraron que utilizar $\tau_{min} = 0.01$ y $\tau_{max} = 6$
+  arroja, en promedio los mejores resultados.
+\item Variar el número de hormigas permite diversificar el espacio de
+  búsqueda y prevenir un estancamiento prematuro. Un número muy bajo
+  resulta en hormigas atrapadas en un mínimo local y un número muy
+  alto implica un costo de computo muy alto. En su estudio, se
+  consiguió que en promedio 30 hormigas arrojan buenos resultados.
+\item Relación $\alpha$-$\rho$. En principio, la diversificación en
+  ACO se alcanza utilizando valores altos de $\alpha$ (lo que hace que
+  las hormigas se vuelvan menos sensible a las feromonas) o
+  incrementando el valor de persistencia de las feromonas $\rho$ (para
+  que se evaporen mucho más lento). En su estudio, se consiguió que
+  utilizar $\alpha = 1$ y $\rho = 0.99$ arroja buenos resultados en un
+  tiempo razonable de búsqueda.
+\item Utilizar búsqueda local para mejorar los cliques conseguidos. En
+  su forma más sencilla \texttt{Ant-Clique} utiliza búsqueda greedy
+  con seleccionando vértices basado en $p(v)$. Una vez conseguido un
+  clique máximal este es mejorado con búsqueda local utilizando
+  $GRASP$. Para \texttt{Dynamic Ant-Clique} nosotros hemos decidido
+  aprovechar las bondades de DLS para realizar tanto la búsqueda de
+  cliques máximos como su optimización por búsqueda local.
+\end{enumerate}
 
 \section{Experimentos y resultados}
 \label{sec:experiments}
