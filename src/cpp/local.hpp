@@ -41,9 +41,10 @@ struct state_t {
     void plateau();
     void updateBest();
     void phases();
-    virtual int select(int *s, int n);
-    virtual void update();
-    virtual void restart();
+    virtual std::pair<int, int> selectImprove(int pos);
+    virtual int selectLevel();
+    void update();
+    void restart();
 };
 
 struct DLS {

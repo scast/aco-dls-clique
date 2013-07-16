@@ -1,4 +1,4 @@
-CFLAGS=-Wall -O3  -lboost_thread-mt
+CFLAGS=-Wall -O3   -lboost_thread-mt
 CC=g++
 
 

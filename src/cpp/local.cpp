@@ -44,44 +44,33 @@ state_t::state_t(graph_t *_g, int _maxSteps, int _penaltyDelay)
     sortedPenalty = new int[g->n];
     for (int i=0; i<g->n; i++)
 	sortedPenalty[i] = i;
-    // currentImprovementSet = new int[g->n];
-    // currentLevelSet = new int[g->n];
-    is = improvementSet(g, currentClique, alreadyUsed, sortedPenalty, 0);
+
+    is = selectImprove(0);
     ls = -1;
-    // isSize = improvementSet(g, currentClique, alreadyUsed,
-    // 			    currentImprovementSet);
-    // lsSize = 0;
+}
+
+std::pair<int, int> state_t::selectImprove(int pos) {
+    return improvementSet(g, currentClique, alreadyUsed, sortedPenalty, pos);
+}
+
+int state_t::selectLevel() {
+    return levelSet(g, currentClique, alreadyUsed, sortedPenalty);
 }
 
 state_t::~state_t() {
     delete[] penalty;
-    // delete[] currentLevelSet;
-    // delete[] currentImprovementSet;
-}
-
-int state_t::select(int *s, int n) {
-    int minval = 0x3f3f3f3f, minpos;
-    for (int i=0; i<n; i++)
-	if (penalty[s[i]] < minval)
-	    minval = penalty[s[i]], minpos = s[i];
-    return minpos;
+    delete[] sortedPenalty;
 }
 
 void state_t::expand() {
     int v;
     while (is.first != -1) {
-	// v = select(currentImprovementSet, isSize);
 	v = is.first;
 	currentClique[v] = 1;
 	alreadyUsed[v] = 1;
 	lastAdded = v;
 	numSteps++;
-	// std::cout << "updateimp" << std::endl;
-	is = improvementSet(g, currentClique, alreadyUsed,
-			    sortedPenalty, is.second);
-	// is = updateImprovementSet(g, currentImprovementSet, isSize,
-	// 			      v, alreadyUsed);
-	// std::cout << "pegado" << std::endl;
+	is = selectImprove(is.second);
     }
     updateBest();
 }
@@ -89,21 +78,17 @@ void state_t::expand() {
 void state_t::plateau() {
     set_t currentCopy = currentClique;
     int remove;
-    ls = levelSet(g, currentClique, alreadyUsed, sortedPenalty);
+    ls = selectLevel();
     while (ls != -1 && (currentClique & currentCopy).count() != 0) {
-	// v = select(currentLevelSet, lsSize);
 	remove = g->disconnectedOne(ls, currentClique);
 	currentClique[ls] = 1;
 	currentClique[remove] = 0;
 	alreadyUsed[ls] = 1;
 	numSteps++;
 	lastAdded = ls;
-	is = improvementSet(g, currentClique, alreadyUsed,
-			    sortedPenalty, 0);
-	// isSize = improvementSet(g, currentClique, alreadyUsed,
-	// 			currentImprovementSet);
+	is = selectImprove(0);
 	if (is.first != -1) break;
-	ls = levelSet(g, currentClique, alreadyUsed, sortedPenalty);
+	ls = selectLevel();
     }
 }
 
@@ -163,7 +148,6 @@ void state_t::restart() {
     std::sort(sortedPenalty, sortedPenalty+g->n, sorter);
     is = improvementSet(g, currentClique, alreadyUsed,
 			sortedPenalty, 0);
-    // std::cout << numSteps << std::endl;
 }
 
 
@@ -182,7 +166,11 @@ void sync(int n, DLS *dls) {
 	dls[i].st->numSteps = 0;
 	for (int j=0; j<n; j++)
 	    dls[i].st->penalty[j] = globalPenalty[j];
+	std::sort(dls[i].st->sortedPenalty,
+		  dls[i].st->sortedPenalty+n,
+		  dls[i].st->sorter);
     }
+
     delete[] globalPenalty;
     delete[] bestSizes;
 }
@@ -191,16 +179,10 @@ DLS::DLS() {}
 DLS::DLS(state_t *_st) : st(_st) {}
 void DLS::operator()() {
     while (st->numSteps < st->maxSteps) {
-	// std::cout << "Expand" << std::endl;
 	st->expand();
-	// std::cout << "Plateau" << std::endl;
 	st->plateau();
-	// std::cout << "Phases" << std::endl;
 	st->phases();
-	// // std::cout << "Update" << std::endl;
 	st->update();
-	// // std::cout << "Restart" << std::endl;
 	st->restart();
-	// std::cout << "Looping" << std::endl;
     }
 }

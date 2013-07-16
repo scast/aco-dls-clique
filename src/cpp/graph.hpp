@@ -24,7 +24,8 @@ struct graph_t {
 
 std::pair<int, int> improvementSet(graph_t *g, set_t& cc, set_t& alreadyUsed,
 				   int *sortedPenalty, int pos);
-// int improvementSet(graph_t *g, set_t& cc, set_t& alreadyUsed, int *ans);
+int improvementSet(graph_t *g, set_t& cc, set_t& alreadyUsed, int *sp,
+		       int *ans);
 int levelSet(graph_t *g, set_t& cc, set_t& alreadyUsed, int *sortedPenalty);
 // int updateImprovementSet(graph_t *g, int *i0, int i0sz, int v,
 // 			 set_t& alreadyUsed);

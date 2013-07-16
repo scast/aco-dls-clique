@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-./local +RTS -K1536M -N4 -H512M -RTS $1 $2 $3 $4
+./main +RTS -K1536M -N8 -H512M -RTS $1 $2 $3 $4

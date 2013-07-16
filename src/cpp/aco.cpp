@@ -10,57 +10,84 @@
 #include "graph.hpp"
 #include "aco.hpp"
 
-std::vector<set_t> foundCliques;
-boost::mutex m_;
-
-ant_state_t::ant_state_t(graph_t *_g, std::vector<double> ph, int alph)
-	: state_t(_g, 1, 1),
-	  pheromones(ph.begin(), ph.end()), alpha(alph)
-{}
-
-void ant_state_t::update() {
-    boost::lock_guard<boost::mutex> guard(m_);
-    foundCliques.push_back(bestClique);
+ant_state_t::ant_state_t(graph_t *_g, int maxSteps, int pd,
+			 double *ph, int alph)
+	: state_t(_g, maxSteps, pd),
+	  pheromones(ph), alpha(alph)
+{
+    currentImprovementSet = new int[g->n];
+    isSz = improvementSet(g, currentClique, alreadyUsed, sortedPenalty,
+			  currentImprovementSet);
+    p = new double[g->n];
 }
 
-void ant_state_t::restart() {
-    // no need to restart
+ant_state_t::~ant_state_t() {
+    delete[] currentImprovementSet;
+    delete[] p;
 }
 
-int ant_state_t::select(std::vector<int>& s) {
-    std::vector<double> p(s.size());
-    int total = 0;
-    for (int i=0; i<s.size(); i++) {
-    	p[i] = pow(pheromones[s[i]], alpha) + total;
-    	total = p[i];
+std::pair<int, int> ant_state_t::selectImprove(int recalc) {
+    if (recalc == 0) {
+	// recalcular el improvement set desde 0
+	isSz = improvementSet(g, currentClique, alreadyUsed, sortedPenalty,
+			      currentImprovementSet);
+    } else {
+	// filtramos el improvementSet.
+	int sz = 0;
+	for (int i=0; i<isSz; i++)
+	    if (g->connected(lastAdded, currentImprovementSet[i]) &&
+		!alreadyUsed[currentImprovementSet[i]])
+		currentImprovementSet[sz++] = currentImprovementSet[i];
+	isSz = sz;
     }
-    boost::mt19937 rng;
+    if (isSz == 0)
+	return std::make_pair(-1, g->n);
+
+    int total = 0;
+    for (int i=0; i<isSz; i++) {
+	p[i] = pow(pheromones[currentImprovementSet[i]], alpha) + total;
+	total = p[i];
+    }
     boost::uniform_real<double> u(0, total);
     boost::variate_generator<boost::mt19937&, boost::uniform_real<double> > gen(rng, u);
     double r = gen();
-    return s[upper_bound(p.begin(), p.end(), r)-p.begin()];
-    // return s[rand() % s.size()];
+    return std::make_pair(currentImprovementSet[std::upper_bound(p, p+isSz, r)-p], 1);
 }
 
 DynamicAntClique::DynamicAntClique(double _tMin, double _tMax, double _rho,
-				   int _alpha, int _maxSteps, int _antNumber, graph_t *_g)
+				   int _alpha, int _maxSteps, int _antNumber,
+				   graph_t *_g, int _dlsMaxSteps, int _dlsPd)
     : tauMin(_tMin), tauMax(_tMax), rho(_rho), alpha(_alpha),
-      maxSteps(_maxSteps), antNumber(_antNumber), g(_g), globalBestSize(-1)
+      maxSteps(_maxSteps), antNumber(_antNumber), g(_g), globalBestSize(-1),
+      dlsMaxSteps(_dlsMaxSteps), dlsPd(_dlsPd)
 {
-    pheromones.assign(g->n, tauMax);
+    pheromones = new double[g->n];
+    for (int i=0; i<g->n; i++)
+	pheromones[i] = tauMax;
+    dls = new DLS[antNumber];
+    for (int i=0; i<antNumber; i++)
+	dls[i] = DLS(new ant_state_t(g, dlsMaxSteps, dlsPd,
+				     pheromones, alpha));
 }
+
+DynamicAntClique::~DynamicAntClique() {
+    delete[] dls;
+}
+
 
 void DynamicAntClique::update() {
     // Evaporate pheromones.
-    for (int i=0; i<pheromones.size(); i++)
+    for (int i=0; i<g->n; i++)
 	pheromones[i] *= rho;
 
     // Find the biggest clique found in this run
-    set_t best=foundCliques[0];
-    int bestSize=foundCliques[0].count();
-    for (int i=1; i<foundCliques.size(); i++)
-	if (bestSize < foundCliques[i].count())
-	    best = foundCliques[i], bestSize = foundCliques[i].count();
+    set_t best=dls[0].st->bestClique;
+    int bestSize=best.count();
+    for (int i=1; i<antNumber; i++)
+    	if (bestSize < dls[i].st->bestClique.count())
+    	    best = dls[i].st->bestClique, bestSize = best.count();
+    for (int i=0; i<antNumber; i++)
+	dls[i].st->bestClique.clear();
 
     // Update global best clique
     if (globalBestSize < bestSize)
@@ -74,28 +101,17 @@ void DynamicAntClique::update() {
 	pheromones[i] = std::max(tauMin, pheromones[i]);
 	pheromones[i] = std::min(tauMax, pheromones[i]);
     }
-    foundCliques.clear();
 }
 
 void DynamicAntClique::operator()() {
+    boost::thread threads[antNumber];
     for (int c=0; c<maxSteps; c++) {
-	std::cout << "It -> " << c << std::endl;
-    	std::vector<DLS> dls;
-    	// inicializar estructuras
-    	for (int i=0; i<antNumber; i++) {
-    	    ant_state_t *st = new ant_state_t(g, pheromones, alpha);
-    	    dls.push_back(DLS(st));
-	    // dls[i]();
-    	}
-	// std::cout << "Begin." << std::endl;
-    	// iniciar busqueda
-    	// // std::vector<boost::thread> threads; //(antNumber);
-    	boost::thread threads[antNumber];
+	std::cout << c << std::endl;
     	for (int i=0; i<antNumber; i++)
     	    threads[i] = boost::thread(dls[i]);
     	for (int i=0; i<antNumber; i++)
     	    threads[i].join();
-	// std::cout << "End." << std::endl;
+	sync(g->n, dls);
     	update();
     }
 
