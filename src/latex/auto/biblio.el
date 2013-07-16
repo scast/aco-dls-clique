@@ -1,0 +1,28 @@
+(TeX-add-style-hook "biblio"
+ (lambda ()
+    (LaTeX-add-bibitems
+     "survey-clique"
+     "Bron:1973:AFC:362342.362367"
+     "karp"
+     "arora1"
+     "best-approx"
+     "oster"
+     "wood"
+     "shinano"
+     "Bomze99"
+     "rls"
+     "grosso"
+     "kopt"
+     "vns"
+     "dynamicl"
+     "old1"
+     "old2"
+     "multistart"
+     "hybgen"
+     "mce"
+     "protein"
+     "aco1"
+     "aco2"
+     "cls"
+     "simulatedannealing")))
+

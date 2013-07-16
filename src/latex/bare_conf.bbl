@@ -1,0 +1,123 @@
+\begin{thebibliography}{10}
+
+\bibitem{arora1}
+Sanjeev Arora and Shmuel Safra.
+\newblock Probabilistic checking of proofs: A new characterization of np.
+\newblock {\em J. ACM}, 45(1):70--122, 1998.
+
+\bibitem{rls}
+Roberto Battiti and Marco Protasi.
+\newblock Reactive local search for the maximum clique problem.
+\newblock Technical report, Algorithmica.
+
+\bibitem{Bomze99}
+Immanuel~M. Bomze, Marco Budinich, Panos~M. Pardalos, and Marcello Pelillo.
+\newblock The maximum clique problem.
+\newblock In {\em Handbook of Combinatorial Optimization}, pages 1--74. Kluwer
+  Academic Publishers, 1999.
+
+\bibitem{best-approx}
+Ravi Boppana and Magnús~M. Halldórsson.
+\newblock Approximating maximum independent sets by excluding subgraphs, 1992.
+
+\bibitem{Bron:1973:AFC:362342.362367}
+Coen Bron and Joep Kerbosch.
+\newblock Algorithm 457: finding all cliques of an undirected graph.
+\newblock {\em Commun. ACM}, 16(9):575--577, September 1973.
+
+\bibitem{mce}
+JohnD. Eblen, CharlesA. Phillips, GaryL. Rogers, and MichaelA. Langston.
+\newblock The maximum clique enumeration problem: Algorithms, applications and
+  implementations.
+\newblock In Jianer Chen, Jianxin Wang, and Alexander Zelikovsky, editors, {\em
+  Bioinformatics Research and Applications}, volume 6674 of {\em Lecture Notes
+  in Computer Science}, pages 306--319. Springer Berlin Heidelberg, 2011.
+
+\bibitem{aco1}
+Serge Fenet and Christine Solnon.
+\newblock Searching for maximum cliques with ant colony optimization.
+\newblock In Stefano Cagnoni, ColinG. Johnson, JuanJ.Romero Cardalda, Elena
+  Marchiori, DavidW. Corne, Jean-Arcady Meyer, Jens Gottlieb, Martin
+  Middendorf, Agnès Guillot, GüntherR. Raidl, and Emma Hart, editors, {\em
+  Applications of Evolutionary Computing}, volume 2611 of {\em Lecture Notes in
+  Computer Science}, pages 236--245. Springer Berlin Heidelberg, 2003.
+
+\bibitem{old1}
+Michel Gendreau, Patrick Soriano, and Louis Salvail.
+\newblock Solving the maximum clique problem using a tabu search approach.
+\newblock {\em Annals of Operations Research}, 41(4):385--403, 1993.
+
+\bibitem{grosso}
+A.~Grosso, M.~Locatelli, and F.~Della Croce.
+\newblock Combining swaps and node weights in an adaptive greedy approach for
+  the maximum clique problem.
+\newblock {\em Journal of Heuristics}, 10(2):135--152, March 2004.
+
+\bibitem{vns}
+Pierre Hansen, Nenad Mladenovi\'{c}, and Dragan Uro\v{s}evi\'{c}.
+\newblock Variable neighborhood search for the maximum clique.
+\newblock {\em Discrete Appl. Math.}, 145(1):117--125, December 2004.
+
+\bibitem{karp}
+Richard~M. Karp.
+\newblock Reducibility among combinatorial problems.
+\newblock In {\em Complexity of Computer Computations}, pages 85--103, 1972.
+
+\bibitem{kopt}
+Kengo Katayama.
+\newblock Solving the maximum clique problem by k-opt local search.
+\newblock In {\em In Proceedings of the 2004 ACM Symposium on Applied
+  computing}, pages 1021--1025, 2004.
+
+\bibitem{protein}
+Noël Malod-Dognin, Rumen Andonov, and Nicola Yanev.
+\newblock Maximum cliques in protein structure comparison.
+\newblock In Paola Festa, editor, {\em Experimental Algorithms}, volume 6049 of
+  {\em Lecture Notes in Computer Science}, pages 106--117. Springer Berlin
+  Heidelberg, 2010.
+
+\bibitem{dynamicl}
+Wayne Pullan and Holger~H. Hoos.
+\newblock Dynamic local search for the maximum clique problem.
+\newblock {\em Journal of Artificial Intelligence Research}, 25:159--185, 2006.
+
+\bibitem{shinano}
+Y.~Shinano, T.~Fujie, Y.~Ikebe, and Ryuichi Hirabayashi.
+\newblock Solving the maximum clique problem using pubb.
+\newblock In {\em Parallel Processing Symposium, 1998. IPPS/SPDP 1998.
+  Proceedings of the First Merged International ... and Symposium on Parallel
+  and Distributed Processing 1998}, pages 326--332, 1998.
+
+\bibitem{hybgen}
+Alok Singh and AshokKumar Gupta.
+\newblock A hybrid heuristic for the maximum clique problem.
+\newblock {\em Journal of Heuristics}, 12(1-2):5--22, 2006.
+
+\bibitem{aco2}
+Christine Solnon and Serge Fenet.
+\newblock A study of aco capabilities for solving the maximum clique problem.
+\newblock {\em Journal of Heuristics}, 12(3):155--180, 2006.
+
+\bibitem{old2}
+Patrick Soriano and Michel Gendreau.
+\newblock Diversification strategies in tabu search algorithms for the maximum
+  clique problem.
+\newblock {\em Annals of Operations Research}, 63(2):189--207, 1996.
+
+\bibitem{wood}
+David~R. Wood.
+\newblock An algorithm for finding a maximum clique in a graph.
+\newblock Technical report, 1997.
+
+\bibitem{multistart}
+Qinghua Wu and Jin-Kao Hao.
+\newblock An adaptive multistart tabu search approach to solve the maximum
+  clique problem.
+\newblock {\em Journal of Combinatorial Optimization}, pages 1--23, 2011.
+
+\bibitem{oster}
+Patric~R.J. Östergård and Patric~R. J.
+\newblock A fast algorithm for the maximum clique problem.
+\newblock {\em Discrete Appl. Math}, 120:197--207.
+
+\end{thebibliography}

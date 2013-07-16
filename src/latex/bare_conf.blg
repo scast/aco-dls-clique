@@ -1,0 +1,50 @@
+This is BibTeX, Version 0.99d (TeX Live 2012)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: bare_conf.aux
+The style file: plain.bst
+Database file #1: biblio.bib
+Warning--empty year in rls
+Warning--empty institution in wood
+Warning--empty year in oster
+You've used 21 entries,
+            2118 wiz_defined-function locations,
+            636 strings with 7621 characters,
+and the built_in function-call counts, 7925 in all, are:
+= -- 773
+> -- 355
+< -- 11
++ -- 141
+- -- 113
+* -- 566
+:= -- 1269
+add.period$ -- 66
+call.type$ -- 21
+change.case$ -- 114
+chr.to.int$ -- 0
+cite$ -- 24
+duplicate$ -- 312
+empty$ -- 633
+format.name$ -- 113
+if$ -- 1710
+int.to.chr$ -- 0
+int.to.str$ -- 21
+missing$ -- 18
+newline$ -- 107
+num.names$ -- 48
+pop$ -- 117
+preamble$ -- 1
+purify$ -- 91
+quote$ -- 0
+skip$ -- 236
+stack$ -- 0
+substring$ -- 539
+swap$ -- 93
+text.length$ -- 11
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 84
+warning$ -- 3
+while$ -- 78
+width$ -- 23
+write$ -- 234
+(There were 3 warnings)
