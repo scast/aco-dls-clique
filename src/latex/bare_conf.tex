@@ -1123,11 +1123,11 @@ feromonas.
 
 Sea $\tau_i$ la cantidad de feromonas sobre el vértice $i$. Cada nuevo
 vértice a ser agregado al clique actual $C$ es seleccionado del
-conjunto de mejoramiento $N_i(C)$ con probabilidad $p(v)$ con $v \in
+conjunto de mejoramiento $N_I(C)$ con probabilidad $p(v)$ con $v \in
 V$. Esta probabilidad esta definida proporcionalmente al valor de las
 feromonas de cada vértice. Esto es,
 
-$$p(v) = \frac{\tau_v^\alpha}{\sum_{u \in N_i(C)} \tau_u^\alpha}$$
+$$p(v) = \frac{\tau_v^\alpha}{\sum_{u \in N_I(C)} \tau_u^\alpha}$$
 
 donde $\alpha$ es un parámetro que regula el peso que tiene cada
 feromona en la selección de dicho vértice. Es importante notar que el
@@ -1263,7 +1263,7 @@ Para comparación utilizaremos los resultados de DLS descritos por
 Para evaluar el \emph{performance} se utilizaron las instancias de
 grafos del Segundo Reto DIMACS. Estas instancias resultan el método de
 prueba \emph{de facto} para algoritmos que consiguen cliques
-máximos. Son 80 instancias generadas de problemas en teorías de
+máximos. Son 38 instancias generadas de problemas en teorías de
 códigos, diagnóstico de fallas, conjetura de Keller y el problema de
 la tripleta de Steiner en conjunto con grafos aleatoriamente
 generados.  Estos problemas varían de 50 vértices y 1000 lados hasta
