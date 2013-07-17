@@ -848,7 +848,7 @@ El algoritmo de intensificación, o expansión iterativa, descrito en el
 algoritmo 2, se basa en un método de construcción greedy sobre un
 clique inicial $C_0$, donde en cada iteración $k$ se construye un
 nuevo clique $C_k = C_{k-1} \cup \lbrace v \rbrace$ siendo $v \in
-N_I(C_{k-1}$, es decir, que se encuentra conectado a todos los
+N_I(C_{k-1})$, es decir, que se encuentra conectado a todos los
 vértices en $C_{k-1}$.  La fase de intensificación termina cuando
 $N_I(C_{k-1}) = \emptyset$, es decir, cuando $C_{k-1}$ es un
 \emph{clique maximal}.
@@ -1258,7 +1258,7 @@ Para comparación utilizaremos los resultados de DLS descritos por
 \texttt{Ant-Clique+Vertex-AC} descritos por \cite{aco2}.
 
 \subsection{Instancias de prueba}
-\label{sec:aco}
+\label{sec:instances}
 
 Para evaluar el \emph{performance} se utilizaron las instancias de
 grafos del Segundo Reto DIMACS. Estas instancias resultan el método de
@@ -1295,6 +1295,26 @@ La descripción de las instancias es como sigue:
   densidad entre 0.244 y 0.506.
 
 \end{itemize}
+
+\subsection{Resultados: \texttt{DLS} vs \texttt{Collaborative-DLS}}
+\label{sec:dls_res}
+
+En la tabla [FIXME] vemos los resultados obtenidos tras 10 corridas
+de la metaheurística \texttt{Collaborative-DLS}, en comparación con
+los resultados reportados por \cite{dynamicl} para la metaheurística
+\texttt{DLS}; clique máximo encontrado, promedio del clique máximo
+encontrado en las 10 corridas y tiempo de CPU (el menor obtenido).
+
+% PUT TABLE HERE
+
+De estos resultados resulta evidente que \texttt{DLS} sigue siendo
+el estado del arte para el problema de clique máximo; a pesar de
+haber conseguido los mismos resultados máximos que \texttt{DLS}
+en 33 de las instancias, en las 4 instancias restantes
+\texttt{Collaborative-DLS} no logró conseguir el clique máximo
+conseguido por \texttt{DLS}. Adicionalmente, los resultados promedio
+obtenidos por \texttt{Collaborative-DLS} en otras 6 instancias (10
+en total) fue menor que el promedio logrado por \texttt{DLS}.
 
 \begin{center}
 \begin{table*}[ht]
@@ -1357,7 +1377,13 @@ representan tiempos despreciables no medibles.}
 \end{table*}
 \end{center}
 
+\subsection{Resultados: \texttt{Vertex-AC} vs \texttt{Dynamic-ACO}}
+\label{sec:aco_res}
 
+A continuación presentamos una tabla comparativa [FIXME] con los resultados
+presentados por \cite{aco2} usando \texttt{Ant-Clique+Vertex-AC}, y los
+resultados obtenidos luego de 10 ejecuciones de la metaheurística
+\texttt{Dynamic-ACO} descrita en la sección V.
 
 \begin{center}
 \begin{table*}[ht]
@@ -1420,12 +1446,19 @@ representan tiempos despreciables no medibles.}
 \end{table*}
 \end{center}
 
+Estos datos resultan bastante interesantes: \texttt{Dynamic-ACO}
+supera el clique máximo encontrado por \texttt{Vertex-AC} en 8
+instancias y mejora el promedio obtenido en otras 7 (un total de 15 
+instancias). A pesar de esto, en 3 instancias \texttt{Dynamic-ACO}
+obtuvo cliques de tamaño mejor al obtenido en \cite{aco2}. Para las
+26 instancias restantes, se igualaron los resultados.
 
 \section{Conclusiones y futuras direcciones}
 \label{sec:conclusions}
 
-
-
+\begin{itemize}
+\item Hola
+\end{itemize}
 
 % \begin{thebibliography}{1}
 
@@ -1441,3 +1474,4 @@ representan tiempos despreciables no medibles.}
 
 % that's all folks
 \end{document}
+
