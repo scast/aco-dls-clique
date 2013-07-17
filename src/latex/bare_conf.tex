@@ -727,54 +727,31 @@ algoritmos que combinan métodos de intensificación con remoción de
 vértices.
 
 \section{Búsqueda Dinámica Local}
-\label{sec:dls}Búsqueda Local Dinámica (\emph{Dynamic Local Search} o
-\emph{DLS}) es una metaheurística presentada por [FIXME], basada en la
+\label{sec:dls}
+
+
+Búsqueda Dinámica Local (\emph{Dynamic Local Search} o \emph{DLS}) es
+una metaheurística presentada por \cite{dynamicl}, basada en la
 combinación de dos fases: una expansión iterativa y una búsqueda
-\emph{plateau}.
+\emph{plateau}. Ambos procedimientos usan un mecanísmo greedy para
+mejorar o alterar, respectivamente, las soluciones intermedias,
+haciendo uso una tabla de penalización como heurística de selección de
+vértices. Esta tabla de penalización asigna a cada vértice un valor
+que es constantemente actualizado mientras evoluciona el proceso de
+búsqueda, y  es usada constantemente dentro del algoritmo para
+seleccionar vértices de un grafo $G$ para ser agregados al clique que
+se está calculando.
 
-Ambos procedimientos usan un mecanísmo greedy para mejorar o alterar
-respectivamente, las soluciones intermedias, haciendo uso una tabla de
-penalización como heurística de selección de vértices. Esta tabla
-provee una diversificación adicional al proceso de búsqueda de
-soluciones; los vértices más usados en soluciones intermedias tendrán
-una mayor penalización, mientras que la selección de vértices premia a
-aquellos con menor valor en dicha tabla.
-
-Una vez inicializada la tabla de penalizaciones en $0$ para todos los
-vértices, \emph{DLS} comienza el proceso de búsqueda con un clique
-trivial: un vértice elegido aleatoriamente. Luego, comienza un proceso
-iterativo que alterna la expansión de la solución y la búsqueda
-\emph{plateau}. Una descripción detallada del algoritmo se encuentra
-en [FIXME].
-
-El algoritmo de intensificación, o expansión iterativa, se basa en un
-método de construcción greedy sobre un clique inicial $C_0$, donde en
-cada iteración $k$ se construye un nuevo clique $C_k = C_{k-1} \cup
-\lbrace v \rbrace$ siendo $v$ un vértice que se encuentra conectado a
-todos los vértices en $C_{k-1}$; este conjunto de vértices se conoce
-como $N_I(C_{k-1})$, o \emph{improving neighbour set}. La fase de
-intensificación termina cuando $N_I(C_{k-1}) = \emptyset$, es decir,
-cuando $C_{k-1}$ es un \emph{clique maximal}. Ver [FIXME].
-
-Una vez se tiene un \emph{clique maximal} $C_0$, comienza la búsqueda
-\emph{plateau}, que consiste (en cada iteración k) en el intercambio
-de un vértice $v \in C_k$ por un vértice $v' \in N_L(C_k)$; donde
-$N_L(C_k)$ es el conjunto de vértices que están conectados a todos
-los vértices en $C_k$ excepto uno (en este caso de $v'$ no está
-conectado con $v$). Este proceso se repite mientras $N_I(C_k) =
-\emptyset$, $N_L(C_k) \neq \emptyset$ y mientras $C_k$ contenga
-vértices del \emph{clique maximal} $C_0$. Ver [FIXME].
-
-Basados en el uso de la tabla de penalizaciones, realizamos una
-modificación sobre \emph{DLS} (a la que llamamos \emph{Collaborative
-DLS}) en la que se mantienen varios hilos de ejecución de \emph{DLS}
-de forma paralela, y cada cierto número de iteraciones (un parámetro
-del algoritmo) se obtiene un promedio ponderado de las tablas de
-penalización de cada ejecución, de acuerdo al tamaño del clique máximo
-encontrado por cada hilo; es decir, los diferentes hilos de \emph{DLS}
-comparten información sobre los cliques visitados, para disminuir la
-probabilidad de repetirlos. El algoritmo detallado se encuentra en
-[FIXME] y [FIXME].
+El proceso de selección utilizado por \emph{DLS} provee una
+diversificación adicional al proceso de búsqueda de soluciones dado
+que el proceso de selección de los vértices se realiza seleccionando
+aquellos con menor costo en la tabla de penalización, es decir, los
+vértices más usados en soluciones intermedias tendrán una mayor
+penalización, mientras que la selección de vértices premia a aquellos
+con menor valor en dicha tabla. Para controlar los valores asociados a
+cada vértice se asigna un parámetro $pd$, conocido como \emph{penalty
+  delay}, que es la cantidad de iteraciones antes de que todo los
+valores de la tabla disminuyan.
 
 \begin{scriptsize}
 \LinesNumbered
@@ -834,6 +811,14 @@ probabilidad de repetirlos. El algoritmo detallado se encuentra en
 \end{scriptsize}
 
 
+DLS, descrito en el algoritmo 1, comienza el proceso de búsqueda
+inicializando la tabla de penalizaciones generando un clique de un
+solo vértice seleccionado de manera aleatoria.  Luego, comienza un
+proceso iterativo que alterna la expansión de la solución y la
+búsqueda \emph{plateau}.
+
+\subsection{Intensificación y diversificación de la búsqueda}
+
 \begin{scriptsize}
 \LinesNumbered
 \begin{algoritmo}[htp]
@@ -858,6 +843,16 @@ probabilidad de repetirlos. El algoritmo detallado se encuentra en
  }
 \end{algoritmo}
 \end{scriptsize}
+
+El algoritmo de intensificación, o expansión iterativa, descrito en el
+algoritmo 2, se basa en un método de construcción greedy sobre un
+clique inicial $C_0$, donde en cada iteración $k$ se construye un
+nuevo clique $C_k = C_{k-1} \cup \lbrace v \rbrace$ siendo $v \in
+N_I(C_{k-1}$, es decir, que se encuentra conectado a todos los
+vértices en $C_{k-1}$.  La fase de intensificación termina cuando
+$N_I(C_{k-1}) = \emptyset$, es decir, cuando $C_{k-1}$ es un
+\emph{clique maximal}.
+
 
 \begin{scriptsize}
 \LinesNumbered
@@ -887,6 +882,89 @@ probabilidad de repetirlos. El algoritmo detallado se encuentra en
 \end{algoritmo}
 \end{scriptsize}
 
+Una vez se ha construido un \emph{clique maximal} $C$, comienza el
+proceso de búsqueda \emph{plateau}, descrito en el algoritmo 3, que
+consiste (en cada iteración k) en el intercambio de un vértice $v \in
+C_k$ por su vértice dual $v'$, es decir por $v' \in N_L(C_k)$. Este
+proceso se repite mientras $N_I(C_k) = \emptyset$, $N_L(C_k) \neq
+\emptyset$ y mientras $C_k$ contenga vértices del \emph{clique
+  maximal} $C_0$. Esta última condición sirve como la condición de
+parada a manera de que siempre haya un solapamiento entre el vértice
+resultante de una etapa de expansión y el vértice resultante de una
+etapa de búsqueda \emph{plateau}; si se intercambian todos los
+vértices del clique original, necesariamente la búsqueda tiene que
+finalizar.
+
+Como bien se dijo antes, ya sea para la selección del vértice de
+$N_I(C)$ a agregar o el vértice de $N_L(C)$ a intercambiar, la
+selección se hace basada en el valor dentro de la tabla de
+penalizaciones y siempre seleccionando el vértice en cualquiera de
+estos conjuntos que minimice el valor de penalización.
+
+\subsection{Actualización de la tabla de penalizaciones}
+\label{sec:dls:update}
+
+Cuando no se pueda se pueda mejorar más el clique $C$ que se ha ido
+construyendo se entra en una fase de actualización de las
+penalizaciones. Estas se actualizan como sigue:
+
+\begin{enumerate}
+\item Dado que es la $n$-ésima iteración del ciclo principal y si $n$
+  es divisible por el parámetro $pd$ entonces se le resta una unidad a
+  todas las posiciones de la tabla de penalizaciones.
+\item Sea $C$ el clique encontrado. Se actualiza la tabla de
+  penalizaciones aumentando en una unidad todas las posiciones
+  pertenecientes a un vértice en el clique $C$.
+\end{enumerate}
+
+Una vez actualizado, se reinicia la búsqueda dependiendo del valor de
+$pd$. Si el valor de $pd$ es mayor a 1, es decir que los valores
+dentro de la tabla de penalizaciones van a disminuir únicamente cada
+cierto número de iteraciones del ciclo principal, entonces se reinicia
+la búsqueda seleccionando el último vértice que fue agregado al
+clique. Esto permite diversificar la búsqueda ya que muy
+probablemente, en la próxima etapa de diversificación no se
+seleccionarán inicialmente los vértices en el clique $C$ encontrado
+puesto que sus valores en la tabla de penalización son mayores. Si por
+el contrario el valor de $pd$ es igual a 1 entonces es equivalente a
+realizar la búsqueda sin que los valores en la tabla de penalización
+tengan mayor importancia (puesto que estos disminuirán inmediatamente
+despues de aumentarlos) entonces se selecciona al azar un nuevo
+vértice, se agrega al clique y se remueven todos los vértices que no
+están conectados a este vértice, efectivamente consiguiendo un nuevo
+clique y continuando la búsqueda a partir de este.
+
+\subsection{Paralelizando \emph{DLS}: \texttt{Collaborative DLS}}
+
+La estructura básica de \emph{DLS} resulta ser altamente paralelizable
+puesto que la única estructura de datos en común es la tabla de
+penalizaciones. Basados en el funcionamiento de la tabla de
+penalizaciones, realizamos una modificación sobre \emph{DLS} en la
+que se mantienen varios hilos de ejecución independientes y de forma
+paralela, y que cada cierto número de iteraciones (parámetro del
+algoritmo) se detiene momentáneamente la búsqueda para consolidar las
+tablas de penalización de todos los hilos. El algoritmo propuesto lo
+llamamos \texttt{Collaborative DLS} y está descrito en el algoritmo
+4. La búsqueda independiente permite diversificar el espacio de
+búsqueda puesto que cada hilo cuenta con su propia tabla de
+penalizaciones, por lo que en principio se explora más el espacio en
+el mismo tiempo.
+
+Cuando los hilos se detienen para consolidar las tablas de
+penalización, proceso que llamamos sincronizar (descrito en el
+algoritmo 5), se calcula una tabla de penalizaciones globales. Esta
+tabla global tiene por ende consolidar la información que ha acumulado
+cada hilo de búsqueda en su tabla de penalización en una sola, para
+luego ser copiada a cada hilo para que estos puedan proseguir su
+búsqueda con más información. La tabla de penalizaciones global se
+calcula como un promedio ponderado donde se le da más importancia a
+las tablas de penalización de cada hilo según el tamaño del clique
+máximo que hayan encontrado en su proceso de búsqueda.
+
+Una vez finalizado el proceso de sincronización de los hilos, la
+búsqueda retoma exactamente en el mismo estado que quedaron antes de
+detenerse pero ahora tienen más información sobre el estado de
+búsqueda y la topología del grafo sobre el cual se esta buscando.
 
 \begin{scriptsize}
 \LinesNumbered
