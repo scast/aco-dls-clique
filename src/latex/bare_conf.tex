@@ -1334,8 +1334,23 @@ obtuvo cliques de tamaño mejor al obtenido en \cite{aco2}. Para las
 \section{Conclusiones y futuras direcciones}
 \label{sec:conclusions}
 
+De los resultados presentados en la sección anterior resulta
+evidente el siguiente grupo de consideraciones:
+
 \begin{itemize}
-\item Hola
+\item \texttt{DLS} sigue siendo el estado del arte en metaheurísticas
+para conseguir cliques máximos. Nuestras modificaciones al algoritmo
+para obtener \texttt{Collaborative-DLS} no tuvieron el impacto esperado,
+aunque obtuvieron resultados comparables.
+\item Resulta evidente que el uso en \emph{ACO} de métodos más 
+sofisticados de búsqueda local ayuda a obtener mejores resultados.
+En este caso, el uso de \texttt{Collaborative-DLS} llevó a 
+\texttt{Dynamic-ACO} a obtener resultados evidentemente superiores
+a la implementación ``común'' de \emph{ACO}.
+\item Ambas metaheurísticas presentadas (\texttt{Collaborative-DLS}
+y \texttt{Dynamic-ACO}) presentan una característica particular:
+son métodos que usan el paralelismo como herramienta para la obtención
+de resultados mediante la colaboración entre hilos de ejecuciones.
 \end{itemize}
 
 % \begin{thebibliography}{1}
