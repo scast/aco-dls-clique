@@ -1392,10 +1392,15 @@ representan tiempos despreciables no medibles.}
 \subsection{Desempeño de \texttt{Dynamic Ant-Clique}}
 \label{sec:aco_res}
 
-En la tabla \ref{tb:aco} A continuación presentamos una tabla comparativa [FIXME] con los resultados
-presentados por \cite{aco2} usando \texttt{Ant-Clique+Vertex-AC}, y los
-resultados obtenidos luego de 10 ejecuciones de la metaheurística
-\texttt{Dynamic-ACO} descrita en la sección V.
+Para las pruebas utilizando algoritmos basados en \texttt{Ant-Clique}
+se utilizaron los siguientes parámetros: $\tau_{min} = 0.01$,
+$\tau_{max} = 6$, $\rho = 0.99$, $\alpha = 1$, $noHormigas = 30$. Para
+los parámetros relacionados con la búsqueda local utilizando
+\emph{DLS} se utilizaron los parámetros reportados en \cite{dynamicl}
+para cada instancia. En la tabla \ref{tb:aco} se presentan los
+resultados consolidados de 10 corridas independientes de
+\texttt{Dynamic Ant-Clique} comparado con la implementación base de
+\texttt{Ant-Clique+Vertex-AC}.
 
 \begin{center}
 \begin{table*}[ht]
@@ -1425,8 +1430,8 @@ resultados obtenidos luego de 10 ejecuciones de la metaheurística
  brock200\_4       &           17  &           17  &  17 (0.0)                   &         5.08  &    17  &  16.1 (0.3)     &         0.1  \\
  brock400\_2       &           29  &  \textbf{29}  &  26.0 (2.6457)              &        38.67  &    25  &  24.5 (0.5)     &         1.0  \\
  brock400\_4       &           33  &  \textbf{33}  &  \textbf{32.3333 (1.1547)}  &        55.47  &    25  &  24.0 (0.1)     &         0.8  \\
- brock800\_2       &           24  &           24  &  \textbf{21.3333 (2.3094)}  &       197.86  &    21  &  20.0 (0.5)     &         2.6  \\
- brock800\_4       &           26  &           26  &  \textbf{22.3333 (3.2145)}  &        28.45  &    21  &  19.8 (0.6)     &         2.7  \\
+ brock800\_2       &           24  &           \textbf{24}  &  \textbf{21.3333 (2.3094)}  &       197.86  &    21  &  20.0 (0.5)     &         2.6  \\
+ brock800\_4       &           26  &           \textbf{26}  &  \textbf{22.3333 (3.2145)}  &        28.45  &    21  &  19.8 (0.6)     &         2.7  \\
  gen200\_p0.9\_44  &           44  &           44  &  44 (0.0)                   &         0.28  &    44  &  41.4 (1.9)     &         0.6  \\
  gen200\_p0.9\_55  &           55  &           55  &  55 (0.0)                   &         0.03  &    55  &  55.0 (0.0)     &         0.2  \\
  gen400\_p0.9\_55  &           55  &  \textbf{55}  &  55 (0.0)                   &        85.43  &    52  &  51.2 (0.5)     &         2.0  \\
@@ -1458,34 +1463,70 @@ representan tiempos despreciables no medibles.}
 \end{table*}
 \end{center}
 
-Estos datos resultan bastante interesantes: \texttt{Dynamic-ACO}
-supera el clique máximo encontrado por \texttt{Vertex-AC} en 8
-instancias y mejora el promedio obtenido en otras 7 (un total de 15
-instancias). A pesar de esto, en 3 instancias \texttt{Dynamic-ACO}
-obtuvo cliques de tamaño mejor al obtenido en \cite{aco2}. Para las
-26 instancias restantes, se igualaron los resultados.
+Estos datos permiten observar una considerable mejora a los resultados
+reportados por \cite{aco1,aco2}. De igual forma podemos observar como
+la meta-heurística híbrida arroja resultado sumamente prometedores:
+\texttt{Dynamic Ant-Clique} supera el clique máximo encontrado por
+\texttt{Ant-Clique+Vertex-AC} en 8 instancias y mejora el promedio
+obtenido en otras 7 (un total de 15 instancias). De igual forma,
+mejora los resultados presentados en la sección anterior para
+\texttt{Dynamic Ant-Clique}. Sin embargo, \texttt{Dynamic Ant-Clique}
+presenta resultados poco alentadores para las instancias
+\texttt{MANN\_*}. Estas instancias se caracterizan por su gran tamaño
+en número de vértices y lados, además de los grandes clique que
+esconde. Tanto \texttt{Ant-Clique+Vertex-AC} como \texttt{Dynamic
+  Ant-Clique} no logran proveer buenos resultados para las instancias
+grandes de este tipo de problema. Para las instancias restantes, se
+logran igualar los resultados.
+
+Resulta claro que el uso de la meta-heurística híbrida resulta en
+muchas instancias en resultados muy buenos. Por ejemplo,
+\cite{dynamicl} reportó que la instancia más difícil para \emph{DLS}
+era \texttt{keller6}. En los resultados que reportamos, podemos notar
+que la meta-heurística híbrida que hemos presentado fue capaz de no
+solo conseguir el clique más grande conocido sino que también fue
+capaz de mantener un tamaño promedio muy alto. De igual forma, por
+depender de \texttt{Collaborative DLS}, cualquier mejora en este
+implicará mejores resultados para la heurística poblacional.
+
 
 \section{Conclusiones y futuras direcciones}
 \label{sec:conclusions}
 
-De los resultados presentados en la sección anterior resulta
-evidente el siguiente grupo de consideraciones:
+Hemos presentado dos estrategias meta-heurísticas altamente
+paralelizables que resuelven el problema del clique máximo arrojando
+resultados sumamente prometedores. Se ha mostrado como ambas
+meta-heurísticas, \emph{DLS} y \emph{ACO}, se pueden beneficiar la una
+a la otra de las bondades que presenta cada una. Resulta de sumo
+interés, dado los avances en el hardware de las computadoras, a futuro
+continuar el estudio de técnicas meta-heurísticas que permitan ser
+fácilmente paralelizables y resulten en buenos resultados. Los
+resultados reportados en el presente trabajo son alentadores en la
+búsqueda de técnicas altamente paralelizables.
 
-\begin{itemize}
-\item \texttt{DLS} sigue siendo el estado del arte en metaheurísticas
-para conseguir cliques máximos. Nuestras modificaciones al algoritmo
-para obtener \texttt{Collaborative-DLS} no tuvieron el impacto esperado,
-aunque obtuvieron resultados comparables.
-\item Resulta evidente que el uso en \emph{ACO} de métodos más 
-sofisticados de búsqueda local ayuda a obtener mejores resultados.
-En este caso, el uso de \texttt{Collaborative-DLS} llevó a 
-\texttt{Dynamic-ACO} a obtener resultados evidentemente superiores
-a la implementación ``común'' de \emph{ACO}.
-\item Ambas metaheurísticas presentadas (\texttt{Collaborative-DLS}
-y \texttt{Dynamic-ACO}) presentan una característica particular:
-son métodos que usan el paralelismo como herramienta para la obtención
-de resultados mediante la colaboración entre hilos de ejecuciones.
-\end{itemize}
+Es evidente que la implementación de \emph{DLS} presentada por
+\cite{dynamicl} sigue representando el estado del arte en algoritmos
+para búsqueda de cliques. A pesar que nuestras modificaciones para
+paralelizarlo permiten obtener un gran aumento de velocidad y abren
+las puertas a mejores técnicas, estas no tuvieron el impacto esperado
+pero sí resultados competitivos y comparables. A pesar de haber
+presentado un marco para la paralelización de \emph{DLS}, su desempeño
+sigue íntimamente asociado al proceso de calculo del conjunto de
+mejora como del conjunto de nivel. Una implementación eficiente en
+tiempo para la resolución de estos conjuntos podría representar una
+gran mejora en el desempeño tanto de \texttt{Collaborative DLS} como
+de \texttt{Dynamic Ant-Clique}.
+
+Como bien se ha dicho, \emph{ACO} se benefició de métodos de búsqueda
+más sofisticados como de la modificación para ser paralelo. A futuro,
+estudiar el efecto de otros métodos de búsqueda junto a \emph{ACO}
+podría resultar en resultados interesantes. Asimismo, resultado de
+nuestra hibridación con \texttt{Collaborative DLS}, fue necesario
+elegir de un criterio de selección de vértices en \texttt{Dynamic
+  Ant-Clique}. Seria de gran interés en futuras investigaciones el
+estudio del efecto de otros criterios de selección tanto para
+\texttt{Dynamic Ant-Clique} como para \texttt{Collaborative DLS}.
+
 
 % \begin{thebibliography}{1}
 
