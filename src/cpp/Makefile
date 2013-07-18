@@ -27,4 +27,4 @@ graph.o: graph.cpp graph.hpp
 	$(CC) -o $@ -c graph.cpp $(CFLAGS)
 
 clean:
-	rm -rf local.o graph.o localcpp *.hi *.o
+	rm -rf aco-go local-go *.hi *.o
