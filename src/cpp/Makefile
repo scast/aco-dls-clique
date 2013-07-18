@@ -1,7 +1,8 @@
 CFLAGS=-Wall -O3   -lboost_thread-mt
 CC=g++
 
-
+main: local-go aco-go
+	
 
 local-go: local.o graph.o local-go.o
 	$(CC) -o local-go local-go.o graph.o local.o $(CFLAGS)
