@@ -59,10 +59,11 @@ el codigo en C++:
 
 Esto generará los binarios `local-go` y `aco-go` para Collaborative
 DLS y Dynamic Ant-Clique respectivamente. Para la ejecución se
-incluyen en lac carpeta instances/ un comprimido con las instancias de
-prueba. Adicionalmente, se incluyen dos scripts `run-local.sh` y
-`run-aco.sh` que fueron los utilizados para generar los resultados de
-las corridas (estos ya tienen los parámetros para cada instancia).
+incluyen en la carpeta instances/ un comprimido con todas las
+instancias de prueba. Adicionalmente, se incluyen dos scripts
+`run-local.sh` y `run-aco.sh` que fueron los utilizados para generar
+los resultados de las corridas (estos ya tienen los parámetros para
+cada instancia).
 
 Correr `run-aco.sh` y `run-local.sh` correrá 3 ejecuciones
 independientes de toda las instancias (esto toma bastante
