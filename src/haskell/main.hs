@@ -1,6 +1,7 @@
 module Main (main) where
 import qualified Data.ByteString.Lazy as B (readFile)
 import qualified Data.IntMap as DM
+import qualified Data.Vector as V
 import Data.Bits
 import Control.Monad (forM)
 import Control.Concurrent
@@ -14,12 +15,12 @@ import MyParser
 import LocalSearch
 
 type SharedState = (MVar PenaltyMap, Chan Set)
-type PenaltyMap = (DM.IntMap (Int, Int))
+type PenaltyMap = (V.Vector (Int, Int))
 
 -- | Builds the shared state across our threads
 getSharedState :: Int -> IO (SharedState)
 getSharedState n = do
-  penaltySTM <- newMVar (DM.fromList [(x, (0, x)) | x <- [0..n-1]])
+  penaltySTM <- newMVar (V.empty)
   foundCliques <- newChan
   return (penaltySTM, foundCliques)
 

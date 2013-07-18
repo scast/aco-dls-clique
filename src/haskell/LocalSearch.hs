@@ -1,11 +1,14 @@
 {-# LANGUAGE PackageImports #-}
-module LocalSearch (Settings(..), goDLS) where
+module LocalSearch (Settings(..), DLS(..), goDLS) where
 import Data.Bits
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust, maybe)
 import qualified Data.Vector as V
+import qualified Data.Vector.Mutable as VM
+import Data.Vector.Algorithms.Intro (sort)
 import qualified Data.ByteString.Lazy as B (readFile)
 import qualified Data.Foldable as DF
 import qualified Data.IntMap as DM
+import Control.Monad.Loops
 import System.Random
 import System.Environment
 import System.Exit
@@ -19,16 +22,16 @@ import "mtl" Control.Monad.Reader
 import Graph
 import MyParser
 
-type PenaltyMap = (DM.IntMap (Int, Int))
+type PenaltyMap = V.Vector (Int, Int)
 
-data EvalState = EvalState { currentClique :: !Set,
-                             bestClique :: !Set,
-                             numSteps ::  !Int,
-                             penalty :: !PenaltyMap,
-                             lastAdded :: !Int,
-                             updateCycle :: !Int,
-                             alreadyUsed :: !Set,
-                             is :: ![Int] }
+data EvalState = EvalState { _currentClique :: !Set
+                           , bestClique :: !Set
+                           , numSteps ::  !Int
+                           , penalty :: !PenaltyMap
+                           , lastAdded :: !Int
+                           , updateCycle :: !Int
+                           , alreadyUsed :: !Set
+                           , currentPosition :: !Int }
 
 data Settings = Settings { graph :: !Graph,
                            maxSteps :: !Int,
@@ -36,166 +39,198 @@ data Settings = Settings { graph :: !Graph,
                            cliqueChan :: !(Chan (Set)),
                            penaltyDelay :: !Int }
 
-type MyStateMonad s a = StateT s IO a
-type CliqueState a = ReaderT Settings (StateT EvalState IO) a
+type CliqueState s a = ReaderT Settings (StateT s IO) a
 
--- | Get the initial state for a thread.
-getInitial :: Graph -> IO (EvalState)
-getInitial g = do
-  let n = nodeCount g
-  initialVertex <- randomRIO (0, n-1)
-  return EvalState { currentClique = 0 `setBit` initialVertex,
-                     bestClique = 0,
-                     numSteps = 0,
-                     lastAdded = initialVertex,
-                     penalty = DM.empty,
-                     updateCycle = 1,
-                     alreadyUsed = 0,
-                     is = [] }
+class SelectCriteria s where
+  -- | How to select a node to be added to the current clique.
+  selectToExpand :: CliqueState s (Maybe Int)
 
--- | Dynamic Local Search for a Maximum Clique
-dls :: CliqueState ()
-dls = do
-  settings <- ask
-  st <- get
-  let ns = numSteps st
-      ms = maxSteps settings
-      mvPM = sharedPenalties settings
-  if (ns < ms) then
-    do
-      -- liftIO $ putStrLn ("Paso -> " ++ (show ns))
-      -- We must fully calculate the improvement set ONCE.
-      -- Then we must retrieve the current penalty map for this iteration
-      let newIs = improvementSet (graph settings) (currentClique st) (alreadyUsed st)
-      pm <- liftIO $ readMVar mvPM
-      put st { is = newIs, penalty = pm }
-      -- We do a single expand/plateau phase
-      expand
-      plateau (currentClique st)
-      -- Expand/Plateau until no more
-      -- -- liftIO $ putStrLn "Llegue a phases"
-      phases
-      -- Update global penalties
-      updatePenalties
-      restart
-      dls
-  else return ()
+  -- | How to select a node to be swapped out of the current clique.
+  selectToSwap :: CliqueState s (Maybe Int)
 
-inc :: Int -> IO (Int)
-inc = return . succ
+  -- | Decide if the improving set is empty.
+  canImprove :: CliqueState s Bool
+
+class SelectCriteria s => DLS s where
+  -- | Compute the initial state of the search
+  getInitial :: Graph -> IO s
+
+  -- | Add a vertex to the current clique
+  addVertex :: Int -> CliqueState s ()
+
+  -- | Swap out a vertex from the current clique
+  swapVertex :: Int -> CliqueState s ()
+
+  -- | Update the best answer found so far.
+  updateBest :: CliqueState s ()
+
+  -- | Update the current state just before starting a new cycle
+  update :: CliqueState s ()
+
+  -- | How to restart the search on the next cycle
+  restart :: CliqueState s ()
+
+  -- | The stopping criteria for the main algorithm
+  stopCriteria :: CliqueState s Bool
+
+  -- | Return the currentClique found.
+  currentClique :: CliqueState s Set
+
+-- | SelectionCriteria based on minimizing the penalty value of the
+-- selected node
+instance SelectCriteria EvalState where
+  selectToExpand = do
+    cc <- gets _currentClique
+    au <- gets alreadyUsed
+    pm <- gets penalty
+    pos <- gets currentPosition
+    g <- asks graph
+    case improvementSet g cc au pm pos of
+      Just (next, pos) -> do modify (\st -> st { currentPosition = pos })
+                             return $ Just next
+      Nothing -> modify (\st -> st { currentPosition = 0 }) >> return Nothing
+
+  selectToSwap = do
+    cc <- gets _currentClique
+    au <- gets alreadyUsed
+    pm <- gets penalty
+    g <- asks graph
+    return $ levelSet g cc au pm
+
+  canImprove = do
+    next <- selectToExpand
+    maybe (return False) (\_ -> do modify (\st -> st { currentPosition = 0 })
+                                   return True) next
+
+
+instance DLS EvalState where
+  getInitial g = do
+    let n = nodeCount g
+    initialVertex <- randomRIO (0, n-1)
+    return EvalState { _currentClique = 0 `setBit` initialVertex
+                     , bestClique = 0 `setBit` initialVertex
+                     , numSteps = 0
+                     , lastAdded = initialVertex
+                     , penalty = V.generate n $ \x -> (0, x)
+                     , updateCycle = 1
+                     , alreadyUsed = 0
+                     , currentPosition = 0}
+
+  addVertex v = modify (\st -> st { _currentClique = (_currentClique st) `setBit` v
+                                  , alreadyUsed = (alreadyUsed st) `setBit` v
+                                  , lastAdded = v
+                                  , numSteps = succ $ numSteps st })
+
+  swapVertex v = do
+    g <- asks graph
+    modify (\st ->
+             let remove = disconnectedOne g v (_currentClique st)
+                 newClique = (_currentClique st) `setBit` v `clearBit` remove
+                 newAlreadyUsed = (alreadyUsed st) `setBit` v
+             in st { _currentClique = newClique
+                   , lastAdded = v
+                   , alreadyUsed = newAlreadyUsed
+                   , numSteps = succ $ numSteps st})
+
+  updateBest = do
+    bc <- gets bestClique
+    cc <- currentClique
+    if popCount bc < popCount cc
+      then do chan <- asks cliqueChan
+              liftIO $ writeChan chan cc
+              modify (\st -> st { bestClique = cc })
+      else return ()
+
+  update = do
+    mvPM <- asks sharedPenalties
+    pd <- asks penaltyDelay
+    uc <- gets updateCycle
+    cc <- currentClique
+    pm <- gets penalty
+    g <- asks graph
+    let dec = if uc `mod` pd == 0 then -1 else 0
+    liftIO $ modifyMVar_ mvPM (updatePenalties g cc dec)
+    pm <- liftIO $ readMVar mvPM
+    modify (\st -> st { updateCycle = succ uc
+                      , penalty = pm })
+
+
+  stopCriteria = do
+    ns <- gets numSteps
+    ms <- asks maxSteps
+    return (ns < ms)
+
+  currentClique = gets _currentClique
+
+  restart = do
+    pd <- asks penaltyDelay
+    if pd > 1
+      then do v <- gets lastAdded
+              modify $ \st -> st { _currentClique = 0 `setBit` v
+                                 , alreadyUsed = 0}
+      else do g <- asks graph
+              let n = nodeCount g
+              v <- liftIO $ randomRIO (0, n-1)
+              cc' <- liftM (flip setBit v) currentClique
+              let newClique = DF.foldl' (\acum i -> if i /= v && cc' `testBit` i &&
+                                                       not (connected g i v)
+                                                    then acum `clearBit` i
+                                                    else acum) cc' [0..n-1]
+              modify $ \st -> st { _currentClique = newClique
+                                 , lastAdded = v
+                                 , alreadyUsed = 0 }
+
+-- | Dynamic Local Search (DLS)
+dls :: DLS s => CliqueState s ()
+dls = whileM_ stopCriteria $ do
+  expand
+  c' <- currentClique
+  plateau c'
+  phases
+  update
+  restart
+
+-- | Decide if the level set is empty. If not, swaps a vertex
+-- according to `s` criteria and returns True.
+canSwap :: DLS s => CliqueState s Bool
+canSwap = do
+  next <- selectToSwap
+  maybe (return False) (\v -> swapVertex v >> return True) next
+
+-- | Decide if the current clique and the stored clique overlap.
+cliquesOverlap :: DLS s => Set -> CliqueState s Bool
+cliquesOverlap c' = do
+  cc <- currentClique
+  return (cc .&. c' /= 0)
 
 -- | Expand the current clique
-expand :: CliqueState ()
-expand = do
-  st <- get
-  settings <- ask
-  let mis = is st
-  if (null mis)
-    then updateBest
-    else do v <- selectMinPenalty mis
-            let newClique = (currentClique st) `setBit` v
-                newAlreadyUsed = (alreadyUsed st) `setBit` v
-            put st {currentClique = newClique, lastAdded = v,
-                    alreadyUsed = newAlreadyUsed, numSteps = (numSteps st) + 1,
-                    is = updateImprovementSet (graph settings) mis v newAlreadyUsed
-                    -- is = improvementSet (graph settings) newClique newAlreadyUsed
-                   }
-            expand
+expand :: DLS s => CliqueState s ()
+expand = whileJust_ selectToExpand  addVertex
 
 -- | Swap nodes from the current clique
-plateau :: Set -> CliqueState ()
-plateau c' = do
-  st <- get
-  settings <- ask
-  let au = alreadyUsed st
-  let ls = levelSet (graph settings) (currentClique st) au
-  if and [((currentClique st) .&. c') /= 0, not (null ls)]
-    then do v <- selectMinPenalty ls
-            let remove = (disconnectedOne (graph settings) v (currentClique st))
-                newClique = (currentClique st) `setBit` v `clearBit` remove
-                newAlreadyUsed = (alreadyUsed st) `setBit` v
-                oldClique = (currentClique st)
-            put st {currentClique = newClique, lastAdded =  v,
-                    alreadyUsed = newAlreadyUsed, numSteps = (numSteps st) + 1,
-                    is = improvementSet (graph settings) newClique newAlreadyUsed
-                    -- is = updateImprovementSetS (graph settings) oldClique ls remove v newAlreadyUsed
-                   }
-            let newIs = is st
-            if null newIs
-              then plateau c'
-              else return ()
-    else return ()
-
-
--- | Update the best clique found so far.
-updateBest :: CliqueState ()
-updateBest = do
-  st <- get
-  let bc = bestClique st
-      cc = currentClique st
-  if popCount bc < popCount cc
-    then do settings <- ask
-            let chan = cliqueChan settings
-            liftIO $ writeChan chan cc
-            put st { bestClique = cc }
-    else return ()
-
--- | Select the node with minimum penalty.
-selectMinPenalty :: [Int] -> CliqueState Int
-selectMinPenalty set = do
-  st <- get
-  let penalties = (penalty st)
-  let ans = minimum (map (\x -> (fromJust (DM.lookup x penalties))) set)
-  return (snd ans)
-
--- -- | Heuristic search mixing penalties and node degree
--- selectBestHeuristic :: [Int] -> CliqueState Int
--- selectBestHeuristic set = do
---   st <- get
---   pe <- liftIO $ readMVar (penalty st)
---   let dg = degree (graph st)
---   let maxi = maxDegree (graph st)
---   let ans = DF.minimum (lOrd maxi dg pe)
---   return (snd ans)
---   where
---     lOrd maxi dg pe = Prelude.map (\(val,pos) -> ( val*(maxi-(dg V.! pos)) ,pos)) (lPen pe)
---     lPen pe = Prelude.map (\x -> (fromJust (DM.lookup x pe))) set
+plateau :: DLS s => Set -> CliqueState s ()
+plateau c' =
+  whileM_ (andM [cliquesOverlap c', liftM not canImprove, canSwap]) $ return ()
 
 -- | Phases of expand and plateau search
-phases :: CliqueState ()
-phases = do
-  st <- get
-  let au = alreadyUsed st
-      mis = is st
-  if (null mis)
-    then return ()
-    else do expand
-            plateau (currentClique st)
-            phases
+phases :: DLS s => CliqueState s ()
+phases = whileM_ canImprove $ do
+  expand
+  cc <- currentClique
+  plateau cc
 
--- | Update clique penalties.
-updatePenalties :: CliqueState ()
-updatePenalties = do
-  st <- get
-  settings <- ask
-  let mvPM = sharedPenalties settings
-      dec = if ((updateCycle st) `mod` (penaltyDelay settings)) == 0 then -1 else 0
-      cc = currentClique st
-  liftIO $ modifyMVar_ mvPM $ \penalties ->
-    return ((DF.foldl' (go cc dec) penalties
-             [0..(nodeCount (graph settings))-1]))
-  put st {updateCycle = (updateCycle st) + 1}
-  -- liftIO $ putStrLn (show (numSteps st))
-  where go cc dec penaltyMap node = DM.adjustWithKey (modifyPenalty cc dec)
-                                    node penaltyMap
-        modifyPenalty cc dec key val = (max 0 ((fst val) + dec
-                                               + (if cc `testBit` key then 1 else 0)), snd val)
+updatePenalties :: Monad m => Graph -> Set -> Int -> PenaltyMap
+                   -> m (V.Vector (Int, Int))
+updatePenalties g cc dec pm = return $ V.create $ do
+  let up = V.generate (nodeCount g) $ \x ->
+        (max 0 (fst (pm V.! x) + dec +
+               if cc `testBit` (snd (pm V.! x)) then 1 else 0)
+         , snd (pm V.! x))
+  v <- V.thaw up
+  sort v
+  return v
 
--- | Restart the search randomly.
-restart :: CliqueState ()
-restart = do
-  st <- get
-  put st {currentClique = 0 `setBit` (lastAdded st),
-          alreadyUsed = 0}
-
-goDLS graph settings = getInitial graph >>= runStateT (runReaderT dls settings)
+-- goDLS ::
+goDLS graph settings = getInitial graph >>= runStateT (runReaderT
+                                                       (dls :: CliqueState EvalState ())
+                                                       settings)
