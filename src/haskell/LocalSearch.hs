@@ -85,6 +85,7 @@ instance SelectCriteria EvalState where
     pm <- gets penalty
     pos <- gets currentPosition
     g <- asks graph
+
     case improvementSet g cc au pm pos of
       Just (next, pos) -> do modify (\st -> st { currentPosition = pos })
                              return $ Just next
@@ -205,7 +206,7 @@ cliquesOverlap c' = do
 
 -- | Expand the current clique
 expand :: DLS s => CliqueState s ()
-expand = whileJust_ selectToExpand  addVertex
+expand = whileJust_ selectToExpand addVertex >> updateBest
 
 -- | Swap nodes from the current clique
 plateau :: DLS s => Set -> CliqueState s ()

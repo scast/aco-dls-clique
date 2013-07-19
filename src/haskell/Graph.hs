@@ -94,7 +94,7 @@ improvementSet !g !cc !alreadyUsed !pm !starting =
             && (connectedAll g x cc)
       val x = snd  (pm ! x)
       pos = val.head
-      possibilities = dropWhile (f.val) [starting..n-1]
+      possibilities = filter(f.val) [starting..n-1]
   in if null possibilities
      then Nothing
      else Just $ (pos possibilities, succ $ head possibilities)
@@ -109,7 +109,7 @@ levelSet g cc alreadyUsed pm =
       cond !x = not (cc `testBit` x) &&
                 not (alreadyUsed `testBit` x) &&
                 isDisconnectedFromOne g x cc bc
-      possibilities = dropWhile (cond.val) [0..n-1]
+      possibilities = filter (cond.val) [0..n-1]
   in if null possibilities
      then Nothing
      else Just $ val (head possibilities)

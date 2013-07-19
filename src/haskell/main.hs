@@ -20,7 +20,7 @@ type PenaltyMap = (V.Vector (Int, Int))
 -- | Builds the shared state across our threads
 getSharedState :: Int -> IO (SharedState)
 getSharedState n = do
-  penaltySTM <- newMVar (V.empty)
+  penaltySTM <- newMVar (V.generate n $ \x -> (0, x))
   foundCliques <- newChan
   return (penaltySTM, foundCliques)
 
